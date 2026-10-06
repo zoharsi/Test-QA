@@ -246,7 +246,7 @@ const World = {
     s.add(this.stars);
 
     this.hemi = new THREE.HemisphereLight(0xbfd6ff, 0x2d2a26, 0.6); s.add(this.hemi);
-    this.amb = new THREE.AmbientLight(0x48506a, 0.15); s.add(this.amb);
+    this.amb = new THREE.AmbientLight(0xdce6dc, 0.3); s.add(this.amb);
     const sun = this.sun = new THREE.DirectionalLight(0xffffff, 2);
     sun.castShadow = true; sun.shadow.mapSize.set(2048, 2048);
     const sc = sun.shadow.camera; sc.left = -95; sc.right = 95; sc.top = 95; sc.bottom = -95; sc.near = 10; sc.far = 520;
@@ -543,6 +543,10 @@ const World = {
       const [x, z] = side === 0 ? [t, o] : side === 1 ? [t, -o] : side === 2 ? [o, t] : [-o, t];
       palms.push([x, z, R(0.9, 1.25), rng(), -0.3]);
     }
+    // Beach vegetation must not occupy the road linking London to the island.
+    for (const placements of [trees, palms]) for (let i = placements.length - 1; i >= 0; i--) {
+      if (Neighborhood.onBridge(placements[i][0], placements[i][1], -3)) placements.splice(i, 1);
+    }
     for (const [x, z, s] of trees) this.addCollider(x - 0.35 * s, x + 0.35 * s, z - 0.35 * s, z + 0.35 * s, 6, true);
     for (const [x, z, s, , y] of palms) if (y === undefined) this.addCollider(x - 0.3, x + 0.3, z - 0.3, z + 0.3, 9, true);
 
@@ -681,9 +685,9 @@ const World = {
     }
     sun.target.position.set(fx, 0, fz);
 
-    this.hemi.intensity = 0.2 + 0.55 * day + 0.18 * dusk;
-    this.hemi.color.copy(top).lerp(this._tmp.set(0xffffff), 0.35);
-    this.amb.intensity = 0.1 + night * 0.16;
+    this.hemi.intensity = 0.3 + 0.55 * day + 0.22 * dusk;
+    this.hemi.color.copy(top).lerp(this._tmp.set(0xffffff), 0.65);
+    this.amb.intensity = 0.3 + night * 0.12;
 
     const lamp = smooth(0.05, 0.45, night + dusk * 0.5);
     this.lampK = lamp;

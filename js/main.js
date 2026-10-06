@@ -55,6 +55,7 @@ const Game = {
     r.setSize(innerWidth, innerHeight);
     r.shadowMap.enabled = true; r.shadowMap.type = THREE.PCFSoftShadowMap;
     r.toneMapping = THREE.ACESFilmicToneMapping; r.toneMappingExposure = 1.15;
+    r.outputEncoding = THREE.sRGBEncoding;
     this.scene = new THREE.Scene();
     this.camera = new THREE.PerspectiveCamera(55, innerWidth / innerHeight, 0.5, 4200);
     this.camera.position.set(260, 120, 160);
@@ -607,6 +608,8 @@ const Game = {
     c.addPass(new THREE.RenderPass(this.scene, this.camera));
     this.bloom = new THREE.UnrealBloomPass(new THREE.Vector2(innerWidth, innerHeight), 0.7, 0.5, 0.82);
     c.addPass(this.bloom);
+    // GLB color textures are decoded to linear; convert once at final output.
+    c.addPass(new THREE.ShaderPass(THREE.GammaCorrectionShader));
   },
   resize() {
     this.renderer.setSize(innerWidth, innerHeight);

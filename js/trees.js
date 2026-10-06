@@ -46,12 +46,41 @@ const ImportedTrees = {
       mixer = new THREE.AnimationMixer(root);
       mixer.clipAction(asset.animations[0]).play(); mixer.update(0);
     }
+    // Tree Animate contains three separate trees side by side in one mesh.
+    // Keep the tree at the authored origin, including its UVs and morph data.
+    if (/animated/.test(asset.file)) root.traverse(node => {
+      if (!node.isMesh) return;
+      const geometry = node.geometry.clone(), positions = geometry.attributes.position;
+      const index = geometry.index, kept = [], count = index ? index.count : positions.count;
+      for (let i = 0; i < count; i += 3) {
+        const a = index ? index.getX(i) : i, b = index ? index.getX(i + 1) : i + 1, c = index ? index.getX(i + 2) : i + 2;
+        if ((positions.getX(a) + positions.getX(b) + positions.getX(c)) / 3 > -35) kept.push(a, b, c);
+      }
+      geometry.setIndex(kept);
+      // Box3 scans all POSITION entries, even vertices omitted by the index.
+      const box = new THREE.Box3(), point = new THREE.Vector3();
+      for (const i of kept) box.expandByPoint(point.fromBufferAttribute(positions, i));
+      geometry.boundingBox = box;
+      node.geometry = geometry;
+    });
     root.updateMatrixWorld(true);
     const bounds = new THREE.Box3().setFromObject(root), parts = [], merged = new Map();
-    // Ground and centre the trunk, not the often-asymmetric canopy.
+    // Anchor the base, not the midpoint of a leaning trunk and its branches.
     const trunk = root.getObjectByName('Trunk_bark_0') || root.getObjectByName('Object_4');
-    const anchor = trunk ? new THREE.Box3().setFromObject(trunk).getCenter(new THREE.Vector3()) : bounds.getCenter(new THREE.Vector3());
-    const offset = new THREE.Matrix4().makeTranslation(-anchor.x, -bounds.min.y, -anchor.z);
+    const anchor = bounds.getCenter(new THREE.Vector3());
+    let groundY = bounds.min.y;
+    if (trunk) {
+      const positions = trunk.geometry.attributes.position, indices = trunk.geometry.index;
+      const point = new THREE.Vector3(), base = new THREE.Box3();
+      const trunkBounds = new THREE.Box3().setFromObject(trunk);
+      const cutoff = trunkBounds.min.y + (trunkBounds.max.y - trunkBounds.min.y) * 0.02;
+      for (let i = 0, n = indices ? indices.count : positions.count; i < n; i++) {
+        point.fromBufferAttribute(positions, indices ? indices.getX(i) : i).applyMatrix4(trunk.matrixWorld);
+        if (point.y <= cutoff) base.expandByPoint(point);
+      }
+      if (!base.isEmpty()) { base.getCenter(anchor); groundY = base.min.y; }
+    }
+    const offset = new THREE.Matrix4().makeTranslation(-anchor.x, -groundY, -anchor.z);
     root.traverse(node => {
       if (!node.isMesh) return;
       const material = node.material.clone();
@@ -94,7 +123,7 @@ const ImportedTrees = {
       parts.push({ geometry, material });
       for (const g of geometries) g.dispose();
     }
-    return { parts, mixer, height: bounds.max.y - bounds.min.y };
+    return { parts, mixer, height: bounds.max.y - groundY };
   },
   update(dt, camera) {
     if (!this.tiles.length || !camera) return;
