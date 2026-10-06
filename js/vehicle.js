@@ -231,6 +231,10 @@ class Vehicle {
     this.vF = vF; this.vR = vR;
 
     this.collideWorld();
+    if (Neighborhood.contains(this.pos.x, this.pos.z) || Neighborhood.onBridge(this.pos.x, this.pos.z) || this.pos.z < -CITY.BOUND) {
+      Neighborhood.constrain(this.pos, this.halfW + 0.1);
+      this.pos.y = World.groundHeight(this.pos.x, this.pos.z);
+    } else this.pos.y = 0;
     if (this.burning) { this.burnT -= dt; if (this.burnT <= 0) this.explode(); }
   }
 

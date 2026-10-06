@@ -81,6 +81,7 @@ const World = {
     await wait(30);
     this.makeTextures();
     this.makeSkyAndLights();
+    Neighborhood.build(this);
     this.makeGround();
     progress(0.2, 'Painting crosswalks and lane lines'); await wait(30);
     this.makeRoadMarkings();
@@ -269,7 +270,13 @@ const World = {
 
     // seawall around the island
     const E = CITY.HALF + 8.6;
-    for (const [x, z, w, d] of [[0, E, S + 4, 0.9], [0, -E, S + 4, 0.9], [E, 0, 0.9, S + 4], [-E, 0, 0.9, S + 4]]) {
+    const walls = [[0, E, S + 4, 0.9], [E, 0, 0.9, S + 4], [-E, 0, 0.9, S + 4]];
+    if (Neighborhood.bridge) {
+      const left = Neighborhood.bridge.x - CITY.ROAD / 2 - 1, right = Neighborhood.bridge.x + CITY.ROAD / 2 + 1;
+      walls.push([(-S / 2 - 2 + left) / 2, -E, left + S / 2 + 2, 0.9],
+        [(right + S / 2 + 2) / 2, -E, S / 2 + 2 - right, 0.9]);
+    } else walls.push([0, -E, S + 4, 0.9]);
+    for (const [x, z, w, d] of walls) {
       const m = new THREE.Mesh(UNIT_BOX, this.mats.concrete); m.scale.set(w, 1.1, d); m.position.set(x, 0.55, z);
       m.castShadow = m.receiveShadow = true; s.add(m);
       this.addCollider(x - w / 2, x + w / 2, z - d / 2, z + d / 2, 1.1);
@@ -624,7 +631,7 @@ const World = {
   /* ---------------- minimap image ---------------- */
   makeMapImage() {
     const S = 1024, c = document.createElement('canvas'); c.width = c.height = S;
-    const g = c.getContext('2d'), E = CITY.HALF + 90, k = S / (2 * E), X = v => (v + E) * k;
+    const g = c.getContext('2d'), E = Math.max(CITY.HALF + 90, Neighborhood.bounds ? -Neighborhood.bounds.minZ + 45 : 0), k = S / (2 * E), X = v => (v + E) * k;
     this.mapExtent = E; this.mapScale = k; this.mapCanvas = c;
     g.fillStyle = '#0e2433'; g.fillRect(0, 0, S, S);
     const sand = CITY.HALF + 8 + 95;
@@ -635,6 +642,7 @@ const World = {
       g.fillStyle = b.type === 'park' ? '#22553a' : b.type === 'suburb' ? '#2b3d33' : '#2a303b';
       g.fillRect(X(b.x0), X(b.z0), CITY.BLOCK * k, CITY.BLOCK * k);
     }
+    Neighborhood.drawMap(g, X, k);
     g.fillStyle = '#3d4554';
     for (const c2 of this.colliders) if (!c2.small && c2.h > 1.5) g.fillRect(X(c2.minX), X(c2.minZ), (c2.maxX - c2.minX) * k, (c2.maxZ - c2.minZ) * k);
     g.fillStyle = '#1f5a78';
@@ -758,6 +766,10 @@ const World = {
     for (let k = 1; k < n; k++) { const t = k / n; if (this.pointBlocked(ax + dx * t, az + dz * t, 0, 1.5, true)) return false; }
     return true;
   },
+  groundHeight(x, z) {
+    if (Neighborhood.contains(x, z)) return Neighborhood.groundHeight(x, z);
+    return this.sidewalkAt(x, z) ? 0.25 : 0;
+  },
   sidewalkAt(x, z) {
     const { HALF, CELL, ROAD, BLOCK } = CITY;
     if (Math.abs(x) >= HALF || Math.abs(z) >= HALF) return false;
@@ -799,6 +811,8 @@ const World = {
   },
 
   zoneName(x, z) {
+    if (Neighborhood.contains(x, z)) return 'London District';
+    if (Neighborhood.onBridge(x, z)) return 'London Bridge';
     if (Math.abs(x) > CITY.HALF + 4 || Math.abs(z) > CITY.HALF + 4) return 'Coastline';
     const i = clamp(Math.floor((x + CITY.HALF) / CITY.CELL), 0, CITY.GRID - 1), j = clamp(Math.floor((z + CITY.HALF) / CITY.CELL), 0, CITY.GRID - 1);
     const b = this.blocks[i * CITY.GRID + j];

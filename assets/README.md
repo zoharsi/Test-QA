@@ -8,6 +8,19 @@ Its base URL is `assets/` on this site, not the
 placeholder GitHub Pages URL. URLs are relative to the page, so subpath hosting
 works. Remote hosting requires CORS permission from the asset server.
 
+## London neighborhood
+
+`assets/london-city.glb` is the supplied complete London district, registered
+separately under `manifest.neighborhoods` rather than repeated in building lots.
+`js/neighborhood.js` places one 720-metre-deep copy north of the original island,
+with a bridge at x=80, perimeter access roads, connected-building colliders and
+road-surface height sampling. Exported invisible collision helpers and fully
+transparent lightmap duplicates are hidden; outlying terrain triangles are
+cropped to the urban footprint without modifying the source GLB. The original
+144 blocks, traffic graph and missions remain unchanged. London appears on both
+maps; GPS routes to it use the bridge (internal London routing is a direct line,
+not an authored street graph).
+
 ## Expected files
 
 | Game type | Path |

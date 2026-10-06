@@ -15,6 +15,7 @@ const Assets = {
       police: { file: 'cars/police.glb', front: '+z' },
     },
     buildings: [],
+    neighborhoods: [{ file: 'london-city.glb', front: '+z' }],
     people: [
       { file: 'people/lucia.glb', front: '+z' }, // Player; rigged, no animation clips.
       { file: 'people/claude.glb', front: '+z' }, // Pedestrians; rigged, no animation clips.
@@ -53,7 +54,7 @@ const Assets = {
     onProgress(0);
     this._loadPromise = this.discoverCars().then(async cars => {
     const files = [...new Set([
-      ...cars, ...this.manifest.buildings, ...this.manifest.people,
+      ...cars, ...this.manifest.buildings, ...this.manifest.people, ...this.manifest.neighborhoods,
     ].map(entry => entry.file))];
     let completed = 0;
     onProgress(0);

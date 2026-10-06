@@ -138,7 +138,7 @@ const Player = {
     if (inp.back) { mx -= fx; mz -= fz; }
     if (inp.right) { mx += rx; mz += rz; }
     if (inp.left) { mx -= rx; mz -= rz; }
-    const len = Math.hypot(mx, mz), ground = World.sidewalkAt(this.pos.x, this.pos.z) ? 0.25 : 0;
+    const len = Math.hypot(mx, mz), ground = World.groundHeight(this.pos.x, this.pos.z);
     const airborne = this.y > ground + 0.02;
     const target = len > 0 ? (inp.sprint ? 7.2 : 3.4) : 0;
     if (len > 0) { mx /= len; mz /= len; this.facing = dampAngle(this.facing, Math.atan2(mx, mz), 12, dt); }
@@ -150,7 +150,8 @@ const Player = {
     this.vy -= 20 * dt; this.y += this.vy * dt;
     if (this.y <= ground) { this.y = ground; this.vy = 0; }
     World.resolveCircle(this.pos, 0.38);
-    this.pos.x = clamp(this.pos.x, -CITY.BOUND, CITY.BOUND); this.pos.z = clamp(this.pos.z, -CITY.BOUND, CITY.BOUND);
+    if (Neighborhood.bounds) Neighborhood.constrain(this.pos, 0.38);
+    else { this.pos.x = clamp(this.pos.x, -CITY.BOUND, CITY.BOUND); this.pos.z = clamp(this.pos.z, -CITY.BOUND, CITY.BOUND); }
     this.pos.y = this.y;
     this.ch.root.rotation.y = this.facing;
     const sp = this.vel.length();
@@ -184,7 +185,7 @@ const Player = {
     // driver's door is on the left (traffic drives on the right)
     this.pos.set(v.pos.x + f.z * (v.halfW + 0.9), 0.25, v.pos.z - f.x * (v.halfW + 0.9));
     World.resolveCircle(this.pos, 0.4);
-    this.y = World.sidewalkAt(this.pos.x, this.pos.z) ? 0.25 : 0;
+    this.y = World.groundHeight(this.pos.x, this.pos.z);
     this.facing = v.heading;
     this.vel.set(v.vel.x * (fast ? 0.35 : 0), v.vel.y * (fast ? 0.35 : 0));
     v.driver = null; v.input.throttle = 0; v.input.brake = 0; v.input.handbrake = !fast; v.input.steer = 0;

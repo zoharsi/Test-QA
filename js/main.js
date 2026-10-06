@@ -458,8 +458,16 @@ const Game = {
     if (!t) { this.route = []; return; }
     const P = Player.focus();
     if (!m && Math.hypot(P.x - t.x, P.z - t.z) < 14) { this.waypoint = null; this.route = []; UI.toast('Destination reached', 'Waypoint removed.', 'ok'); return; }
-    const nodes = World.path(World.nearestNode(P.x, P.z), World.nearestNode(t.x, t.z));
-    this.route = [[P.x, P.z], ...nodes.map(n => [nodeCoord(n[0]), nodeCoord(n[1])]), [t.x, t.z]];
+    const inLondon = p => Neighborhood.contains(p.x, p.z) || Neighborhood.onBridge(p.x, p.z);
+    const fromLondon = inLondon(P), toLondon = inLondon(t);
+    if (fromLondon && toLondon) { this.route = [[P.x, P.z], [t.x, t.z]]; return; }
+    const bridge = Neighborhood.bridge;
+    const junction = bridge ? { x: bridge.x, z: -CITY.HALF } : null;
+    const a = fromLondon ? junction : P, b = toLondon ? junction : t;
+    const nodes = World.path(World.nearestNode(a.x, a.z), World.nearestNode(b.x, b.z));
+    const grid = nodes.map(n => [nodeCoord(n[0]), nodeCoord(n[1])]);
+    this.route = [[P.x, P.z], ...(fromLondon ? [[bridge.x, bridge.minZ], [junction.x, junction.z]] : []),
+      ...grid, ...(toLondon ? [[junction.x, junction.z], [bridge.x, bridge.minZ]] : []), [t.x, t.z]];
   },
 
   /* ---------------- camera ---------------- */
@@ -498,9 +506,12 @@ const Game = {
       look.set(tx + fx * 1.5, ty, tz + fz * 1.5);
       ox = p.x; oz = p.z;
     }
+    if (this.state !== 'menu' && Player.mode === 'car' && Player.vehicle) {
+      des.y += Player.vehicle.pos.y; look.y += Player.vehicle.pos.y;
+    }
     if (k === undefined) { this.camLambda = Math.min(26, this.camLambda + dt * 9); k = this.camLambda; }
     if (collide) {
-      const oy = 1.7;
+      const oy = 1.7 + World.groundHeight(ox, oz);
       for (let s = 1; s <= 12; s++) {
         const u = s / 12, x = lerp(ox, des.x, u), y = lerp(oy, des.y, u), z = lerp(oz, des.z, u);
         if (World.pointBlocked(x, z, 0.4, y, true)) {

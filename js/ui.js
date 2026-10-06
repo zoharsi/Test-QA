@@ -234,9 +234,10 @@ const UI = {
 
     g.textAlign = 'center'; g.textBaseline = 'middle';
     g.font = `500 ${Math.max(11, size * 0.017)}px Heebo, Arial, sans-serif`;
-    g.fillStyle = 'rgba(244,241,232,0.42)';
+    g.fillStyle = 'rgba(244,241,232,0.75)';
     const labels = [[0, 0, 'Downtown'], [0, -270, 'North Hill'], [0, 270, 'Harbor District'], [270, 0, 'East Side'], [-270, 0, 'Arts District'],
-      [0, -440, 'Aurelio Hills'], [0, 440, 'Gold Coast'], [440, 0, 'Palm Vista'], [-440, 0, 'Sunset Flats']];
+      [0, -440, 'Aurelio Hills'], [0, 440, 'Gold Coast'], [540, 65, 'Palm Vista'], [-540, -65, 'Sunset Flats']];
+    if (Neighborhood.bounds) labels.push([CITY.CELL, Neighborhood.bounds.minZ + 35, 'London District']);
     for (const [x, z, t] of labels) g.fillText(t, X(x), Y(z));
 
     if (Game.route.length > 1) {
@@ -263,7 +264,7 @@ const UI = {
     if (!this.bigT) return;
     const r = this.big.getBoundingClientRect(), { size, ox, oy } = this.bigT, E = World.mapExtent;
     const x = ((e.clientX - r.left - ox) / size) * 2 * E - E, z = ((e.clientY - r.top - oy) / size) * 2 * E - E;
-    if (Math.abs(x) > CITY.HALF + 8 || Math.abs(z) > CITY.HALF + 8) return;
+    if ((Math.abs(x) > CITY.HALF + 8 || Math.abs(z) > CITY.HALF + 8) && !Neighborhood.contains(x, z) && !Neighborhood.onBridge(x, z)) return;
     Game.waypoint = { x, z }; Game.updateRoute(); Sound.click();
     this.drawBigMap();
   },
