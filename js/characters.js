@@ -39,6 +39,7 @@ class Character {
   }
   setModel(asset, shadow) {
     if (!asset) return;
+    if (asset.proceduralMotion && !asset.animations.length) this.motion = new CharacterMotion(asset.scene);
     const model = Assets.normalize(asset, 'y', 1.8);
     model.traverse(node => {
       if (node.isMesh) {
@@ -89,6 +90,7 @@ class Character {
     this.legL.rotation.x = s * amp; this.legR.rotation.x = -s * amp;
     this.armL.rotation.x = -s * amp * 0.85; this.armR.rotation.x = s * amp * 0.85;
     if (this.punchT > 0) { this.punchT -= dt; this.armR.rotation.x = -1.5 * Math.sin((1 - this.punchT / 0.3) * Math.PI); }
+    if (this.motion) this.motion.update(this.phase, amp, Math.max(0, this.punchT));
     this.body.position.y = Math.abs(Math.cos(this.phase)) * 0.06 * amp;
     this.body.rotation.x = running ? 0.14 : 0.02 * amp;
   }

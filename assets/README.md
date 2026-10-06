@@ -31,11 +31,15 @@ not an authored street graph).
 | Van | `assets/cars/van.glb` |
 | Taxi | `assets/cars/taxi.glb` |
 | Police | `assets/cars/police.glb` |
-| Player: Lucia (supplied) | `assets/people/lucia.glb` |
+| Player: Niko (supplied) | `assets/people/niko.glb` |
 | Pedestrians: Claude (supplied) | `assets/people/claude.glb` |
+| Pedestrians: Alien (supplied) | `assets/people/alien.glb` |
 
-Lucia and Claude are skinned models but contain no animation clips; they retain
-their exported pose while gameplay moves them. The supplied Alfa Romeo has its
+Niko is the player; Alien joins Claude in the random pedestrian pool. Niko and
+Alien contain only zero-duration pose clips, so they use basic code-driven bone
+animation for walking/running and punches (not captured animation). The Niko GLB
+also corrects hand vertices exported at 100 times the body's scale. Lucia is
+retained on disk but unused; Claude retains his static exported pose. The supplied Alfa Romeo has its
 merged wheel parts split into four named assemblies, separate badge objects
 named for removal, and its slight export tilt corrected by manifest metadata.
 No building or animated-person files have been supplied yet. Do not invent
@@ -43,7 +47,7 @@ filenames: add their actual paths as `{ file: 'buildings/<filename>.glb', front:
 or `{ file: 'people/<filename>.glb', front: '+z' }` entries in the manifest after
 uploading. A static browser site cannot enumerate a GitHub Pages directory.
 
-People index **0** is always the player (currently Lucia).
+People index **0** is always the player (currently Niko).
 Replace that entry with the desired rigged player. Indices **1 onward** are
 pedestrians; with no such entries, pedestrians stay procedural. A missing or
 invalid file falls back per item, without blocking the game. Every unique file
@@ -68,7 +72,9 @@ is fetched once per page load, including failed requests, with a 15-second timeo
 - People scale to 1.8 metres. Name clips with `idle`, `walk`, `run`, and optionally
   `death`, `die` or `fall` (case-insensitive). Locomotion defaults to the first clip.
   Use **in-place animations**: gameplay, not animation root motion, moves people.
-  Static files remain static; this adapter cannot create a missing rig or clips.
+  Zero-duration pose clips are ignored. Niko and Alien opt into basic code-driven
+  skeletal walking, running and punching via `proceduralMotion: true`; this is
+  not motion capture. Other static files retain their authored pose.
 - Midtown/suburb buildings scale uniformly inside each generated lot, with their
   front toward the nearest street. Geometry/material pairs are instanced for static
   opaque models; skinned, animated, morphing or transparent models use regular

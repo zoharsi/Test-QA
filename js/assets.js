@@ -17,8 +17,9 @@ const Assets = {
     buildings: [],
     neighborhoods: [{ file: 'london-city.glb', front: '+z' }],
     people: [
-      { file: 'people/lucia.glb', front: '+z' }, // Player; rigged, no animation clips.
-      { file: 'people/claude.glb', front: '+z' }, // Pedestrians; rigged, no animation clips.
+      { file: 'people/niko.glb', front: '+z', proceduralMotion: true }, // Player.
+      { file: 'people/claude.glb', front: '+z' },
+      { file: 'people/alien.glb', front: '+z', proceduralMotion: true },
     ],
   },
   cache: new Map(),
@@ -102,7 +103,7 @@ const Assets = {
       let skinned = false;
       gltf.scene.traverse(node => { if (node.isSkinnedMesh) skinned = true; });
       const scene = skinned ? THREE.SkeletonUtils.clone(gltf.scene) : gltf.scene.clone(true);
-      return { scene, animations: gltf.animations || [], front: entry.front || '+z', tilt: entry.tilt || 0, file: entry.file };
+      return { scene, animations: (gltf.animations || []).filter(clip => clip.duration > 0), proceduralMotion: !!entry.proceduralMotion, front: entry.front || '+z', tilt: entry.tilt || 0, file: entry.file };
     } catch (error) {
       console.warn('Asset cannot be cloned; keeping procedural fallback:', entry.file, error);
       this.cache.set(entry.file, null);
