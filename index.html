@@ -1,0 +1,174 @@
+<!DOCTYPE html>
+<html lang="he" dir="rtl">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <title>San Aurelio — משחק עולם פתוח בדפדפן</title>
+  <meta name="description" content="משחק עולם פתוח בתלת־ממד שרץ בדפדפן: עיר חוף שלמה, נהיגה, מרדפים משטרתיים, משימות ורדיו.">
+  <meta name="theme-color" content="#0d1117">
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🌆</text></svg>">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Heebo:wght@400;500;700;800;900&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+  <canvas id="game" aria-label="עולם המשחק"></canvas>
+  <div id="vignette" aria-hidden="true"></div>
+
+  <!-- loading -->
+  <section id="loading" class="screen on" aria-live="polite">
+    <div class="load-inner">
+      <div class="logo">
+        <span class="logo-san">SAN</span>
+        <span class="logo-main">AURELIO</span>
+      </div>
+      <div class="load-bar"><i id="load-fill"></i></div>
+      <p class="load-status" id="load-status">מאתחל…</p>
+      <p class="load-tip" id="load-tip"></p>
+    </div>
+  </section>
+
+  <!-- main menu: overhead highway gantry -->
+  <section id="menu" class="screen">
+    <div class="menu-shade" aria-hidden="true"></div>
+    <header class="menu-brand">
+      <div class="logo big">
+        <span class="logo-san">SAN</span>
+        <span class="logo-main">AURELIO</span>
+      </div>
+      <p class="tagline">עיר חוף אחת. אלף דרכים לברוח ממנה.</p>
+    </header>
+
+    <nav class="gantry" aria-label="תפריט ראשי">
+      <div class="beam" aria-hidden="true"></div>
+      <div class="signs">
+        <button class="sign primary" data-act="play">
+          <span class="exit">יציאה 1</span>
+          <span class="sign-main" id="play-label">התחל לשחק</span>
+          <span class="sign-sub">העיר כבר ערה</span>
+          <span class="arrow" aria-hidden="true"></span>
+        </button>
+        <button class="sign" data-act="controls">
+          <span class="exit">יציאה 2</span>
+          <span class="sign-main">שליטה</span>
+          <span class="sign-sub">מקלדת ועכבר</span>
+          <span class="arrow" aria-hidden="true"></span>
+        </button>
+        <button class="sign" data-act="settings">
+          <span class="exit">יציאה 3</span>
+          <span class="sign-main">הגדרות</span>
+          <span class="sign-sub">גרפיקה וצליל</span>
+          <span class="arrow" aria-hidden="true"></span>
+        </button>
+        <button class="sign" data-act="about">
+          <span class="exit">יציאה 4</span>
+          <span class="sign-main">על המשחק</span>
+          <span class="sign-sub">איך זה בנוי</span>
+          <span class="arrow" aria-hidden="true"></span>
+        </button>
+      </div>
+      <div class="posts" aria-hidden="true"><i></i><i></i></div>
+    </nav>
+
+    <footer class="menu-foot">
+      <span>מומלץ לשחק במחשב עם מקלדת ועכבר, עם אוזניות.</span>
+      <span dir="ltr">v1.0 · Three.js</span>
+    </footer>
+  </section>
+
+  <!-- modal panel (controls / settings / about) -->
+  <section id="panel" class="modal" role="dialog" aria-modal="true" aria-labelledby="panel-title">
+    <div class="modal-card">
+      <header>
+        <h2 id="panel-title"></h2>
+        <button class="x" data-act="close-panel" aria-label="סגור">✕</button>
+      </header>
+      <div id="panel-body"></div>
+    </div>
+  </section>
+
+  <!-- HUD -->
+  <section id="hud" class="screen">
+    <div class="hud-tr">
+      <div id="clock" dir="ltr">18:20</div>
+      <div id="money" dir="ltr">$0</div>
+      <div id="money-delta" dir="ltr"></div>
+      <div id="heat" aria-label="רמת מרדף"></div>
+    </div>
+
+    <div class="hud-bl">
+      <div class="mini-wrap"><canvas id="minimap" aria-label="מפה"></canvas></div>
+      <div id="zone"></div>
+    </div>
+
+    <div id="speedo">
+      <svg viewBox="0 0 140 140" aria-hidden="true">
+        <circle class="sp-bg" cx="70" cy="70" r="56" stroke-dasharray="263.9 400" transform="rotate(135 70 70)"/>
+        <circle class="sp-fg" id="sp-arc" cx="70" cy="70" r="56" stroke-dasharray="0 400" transform="rotate(135 70 70)"/>
+      </svg>
+      <div class="sp-read">
+        <span id="sp-num">0</span>
+        <span class="sp-unit">קמ״ש</span>
+      </div>
+      <span id="sp-gear">N</span>
+      <div class="sp-hp"><i id="sp-hp"></i></div>
+    </div>
+
+    <div id="toasts" aria-live="polite"></div>
+    <div id="zone-pop"></div>
+    <div id="vname" dir="ltr"></div>
+    <div id="radio-pop"><span class="r-name" dir="ltr"></span><span class="r-genre"></span></div>
+    <div id="mtimer" dir="ltr"></div>
+    <div id="objective" aria-live="polite"></div>
+    <div id="prompt"></div>
+    <div id="bust"><i></i><span>השוטרים עוצרים אותך — זוז!</span></div>
+    <div id="lock-hint">לחץ על המסך כדי לשלוט במצלמה בעכבר</div>
+    <div id="fps" dir="ltr"></div>
+    <div id="hurt" aria-hidden="true"></div>
+  </section>
+
+  <!-- mission / death banner -->
+  <section id="banner" aria-live="assertive">
+    <h1 id="b-title"></h1>
+    <p id="b-sub"></p>
+  </section>
+
+  <!-- pause -->
+  <section id="pause" class="screen">
+    <div class="pause-card">
+      <h2>המשחק בהפסקה</h2>
+      <button class="pbtn primary" data-act="resume">חזרה לרחוב</button>
+      <button class="pbtn" data-act="map">מפת העיר</button>
+      <button class="pbtn" data-act="controls">שליטה</button>
+      <button class="pbtn" data-act="settings">הגדרות</button>
+      <button class="pbtn ghost" data-act="quit">לתפריט הראשי</button>
+    </div>
+  </section>
+
+  <!-- full map -->
+  <section id="bigmap" class="screen">
+    <canvas id="bigmap-c"></canvas>
+    <div class="map-legend">
+      <span><i style="background:#ffc247"></i>משימה</span>
+      <span><i style="background:#b47cff"></i>נקודת ציון ומסלול</span>
+      <span><i style="background:#ff3b4a"></i>משטרה</span>
+    </div>
+    <p class="map-hint">קליק מסמן יעד · קליק ימני מוחק · M או Esc לסגירה</p>
+  </section>
+
+  <div id="fade" aria-hidden="true"></div>
+
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+  <script src="js/config.js"></script>
+  <script src="js/audio.js"></script>
+  <script src="js/world.js"></script>
+  <script src="js/vehicle.js"></script>
+  <script src="js/characters.js"></script>
+  <script src="js/ai.js"></script>
+  <script src="js/fx.js"></script>
+  <script src="js/missions.js"></script>
+  <script src="js/ui.js"></script>
+  <script src="js/main.js"></script>
+</body>
+</html>
