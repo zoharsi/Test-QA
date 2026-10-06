@@ -62,6 +62,8 @@ const Game = {
 
     await Assets.load(p => UI.loading(p * 0.18, 'טוען מודלים'));
     await World.build(this.scene, (p, s) => UI.loading(0.18 + p * 0.82, s));
+    UI.loading(0.83, 'Capturing daylight aerial map'); await wait(30);
+    AerialMap.build(r, this.scene);
     FX.init(this.scene);
     Weapons.init();
     Heli.build();

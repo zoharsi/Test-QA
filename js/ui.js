@@ -229,7 +229,7 @@ const UI = {
     g.fillStyle = '#071722'; g.fillRect(0, 0, W, H);
     const size = Math.min(W, H) * 0.9, ox = (W - size) / 2, oy = (H - size) / 2, E = World.mapExtent, px = size / (2 * E);
     this.bigT = { size, ox, oy };
-    g.drawImage(World.mapCanvas, ox, oy, size, size);
+    g.drawImage(AerialMap.canvas || World.mapCanvas, ox, oy, size, size);
     const X = x => ox + (x + E) * px, Y = z => oy + (z + E) * px;
 
     g.textAlign = 'center'; g.textBaseline = 'middle';
@@ -238,7 +238,8 @@ const UI = {
     const labels = [[0, 0, 'Downtown'], [0, -270, 'North Hill'], [0, 270, 'Harbor District'], [270, 0, 'East Side'], [-270, 0, 'Arts District'],
       [0, -440, 'Aurelio Hills'], [0, 440, 'Gold Coast'], [540, 65, 'Palm Vista'], [-540, -65, 'Sunset Flats']];
     if (Neighborhood.bounds) labels.push([CITY.CELL, Neighborhood.bounds.minZ + 35, 'London District']);
-    for (const [x, z, t] of labels) g.fillText(t, X(x), Y(z));
+    g.strokeStyle = 'rgba(8,20,25,0.85)'; g.lineWidth = 3; g.lineJoin = 'round';
+    for (const [x, z, t] of labels) { g.strokeText(t, X(x), Y(z)); g.fillText(t, X(x), Y(z)); }
 
     if (Game.route.length > 1) {
       g.strokeStyle = '#b47cff'; g.lineWidth = 4; g.lineCap = g.lineJoin = 'round'; g.beginPath();
@@ -248,7 +249,7 @@ const UI = {
     const dot = (x, z, color, r, label) => {
       g.fillStyle = color; g.strokeStyle = '#071722'; g.lineWidth = 2;
       g.beginPath(); g.arc(X(x), Y(z), r, 0, Math.PI * 2); g.fill(); g.stroke();
-      if (label) { g.fillStyle = '#f4f1e8'; g.font = '600 13px Heebo, Arial, sans-serif'; g.fillText(label, X(x), Y(z) - r - 10); }
+      if (label) { g.fillStyle = '#f4f1e8'; g.font = '600 13px Heebo, Arial, sans-serif'; g.lineWidth = 3; g.strokeText(label, X(x), Y(z) - r - 10); g.fillText(label, X(x), Y(z) - r - 10); }
     };
     if (!Missions.active) for (const gv of Missions.givers) dot(gv.x, gv.z, hex(gv.def.color), 7, gv.def.title);
     const t = Missions.targetPos();
