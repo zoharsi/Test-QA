@@ -13,19 +13,24 @@ works. Remote hosting requires CORS permission from the asset server.
 | Game type | Path |
 | --- | --- |
 | Sedan | `assets/cars/sedan.glb` |
-| Sports | `assets/cars/sedan-sports.glb` |
+| Sports (supplied) | `assets/cars/alfa-romeo-t332.glb` |
 | SUV | `assets/cars/suv.glb` |
 | Van | `assets/cars/van.glb` |
 | Taxi | `assets/cars/taxi.glb` |
 | Police | `assets/cars/police.glb` |
-| Current player (already uploaded) | `assets/trevor.glb` |
+| Player: Lucia (supplied) | `assets/people/lucia.glb` |
+| Pedestrians: Claude (supplied) | `assets/people/claude.glb` |
 
+Lucia and Claude are skinned models but contain no animation clips; they retain
+their exported pose while gameplay moves them. The supplied Alfa Romeo has its
+merged wheel parts split into four named assemblies, separate badge objects
+named for removal, and its slight export tilt corrected by manifest metadata.
 No building or animated-person files have been supplied yet. Do not invent
 filenames: add their actual paths as `{ file: 'buildings/<filename>.glb', front: '+z' }`
 or `{ file: 'people/<filename>.glb', front: '+z' }` entries in the manifest after
 uploading. A static browser site cannot enumerate a GitHub Pages directory.
 
-People index **0** is always the player (currently the static Trevor model).
+People index **0** is always the player (currently Lucia).
 Replace that entry with the desired rigged player. Indices **1 onward** are
 pedestrians; with no such entries, pedestrians stay procedural. A missing or
 invalid file falls back per item, without blocking the game. Every unique file
@@ -57,5 +62,6 @@ is fetched once per page load, including failed requests, with a 15-second timeo
   clones. The final world bounds feed collisions and the existing minimap.
   Downtown towers stay procedural.
 
-The currently absent car/building/animated-person models must be uploaded before
-those real visuals, wheel naming, facing directions and animations can be verified.
+Building models, dedicated police/van models, and character animation clips still
+need to be supplied. Character normalization measures posed skinned vertices,
+not just bind-pose bounds, to support the supplied models' armature scaling.

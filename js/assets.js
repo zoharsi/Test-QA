@@ -8,14 +8,17 @@ const Assets = {
   manifest: {
     cars: {
       sedan: { file: 'cars/sedan.glb', front: '+z' },
-      sports: { file: 'cars/sedan-sports.glb', front: '+z' },
+      sports: { file: 'cars/alfa-romeo-t332.glb', front: '+z', tilt: -0.03136960035380437 },
       suv: { file: 'cars/suv.glb', front: '+z' },
       van: { file: 'cars/van.glb', front: '+z' },
       taxi: { file: 'cars/taxi.glb', front: '+z' },
       police: { file: 'cars/police.glb', front: '+z' },
     },
     buildings: [],
-    people: [{ file: 'trevor.glb', front: '+z' }], // Existing upload; static, not rigged.
+    people: [
+      { file: 'people/lucia.glb', front: '+z' }, // Player; rigged, no animation clips.
+      { file: 'people/claude.glb', front: '+z' }, // Pedestrians; rigged, no animation clips.
+    ],
   },
   cache: new Map(),
   _loadPromise: null,
@@ -98,7 +101,7 @@ const Assets = {
       let skinned = false;
       gltf.scene.traverse(node => { if (node.isSkinnedMesh) skinned = true; });
       const scene = skinned ? THREE.SkeletonUtils.clone(gltf.scene) : gltf.scene.clone(true);
-      return { scene, animations: gltf.animations || [], front: entry.front || '+z', file: entry.file };
+      return { scene, animations: gltf.animations || [], front: entry.front || '+z', tilt: entry.tilt || 0, file: entry.file };
     } catch (error) {
       console.warn('Asset cannot be cloned; keeping procedural fallback:', entry.file, error);
       this.cache.set(entry.file, null);
@@ -120,13 +123,36 @@ const Assets = {
     const group = new THREE.Group(), facing = new THREE.Group();
     const yaw = { '+z': 0, '-z': Math.PI, '+x': -Math.PI / 2, '-x': Math.PI / 2 };
     facing.rotation.y = yaw[asset.front] || 0;
+    facing.rotation.x = asset.tilt || 0;
     facing.add(asset.scene); group.add(facing);
     group.userData.assetFile = asset.file;
     return group;
   },
+  // r128's Box3 ignores skinning. Measure posed vertices so imported rigs
+  // with scaled armatures are grounded and sized by their rendered shape.
+  modelBounds(object) {
+    object.updateMatrixWorld(true);
+    const bounds = new THREE.Box3(), vertex = new THREE.Vector3();
+    object.traverseVisible(node => {
+      if (!node.isMesh) return;
+      if (node.isSkinnedMesh) {
+        node.skeleton.update();
+        const positions = node.geometry.attributes.position;
+        for (let i = 0; i < positions.count; i++) {
+          vertex.fromBufferAttribute(positions, i);
+          node.boneTransform(i, vertex);
+          bounds.expandByPoint(vertex.applyMatrix4(node.matrixWorld));
+        }
+      } else {
+        if (!node.geometry.boundingBox) node.geometry.computeBoundingBox();
+        bounds.union(node.geometry.boundingBox.clone().applyMatrix4(node.matrixWorld));
+      }
+    });
+    return bounds;
+  },
   normalize(asset, axis, target) {
     const group = this.oriented(asset);
-    const bounds = new THREE.Box3().setFromObject(group);
+    const bounds = this.modelBounds(group);
     const size = bounds.getSize(new THREE.Vector3()), center = bounds.getCenter(new THREE.Vector3());
     const scale = target / size[axis];
     group.scale.setScalar(scale);

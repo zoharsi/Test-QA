@@ -23,4 +23,7 @@ procedural low-detail sports-car model, returning to full detail within 80 metre
 or above 50 FPS. The distance/FPS margins prevent flickering.
 
 On static hosts without directory listings, explicitly register every filename
-in `Assets.manifest.cars` before deployment. No sports-car GLBs are supplied yet.
+in `Assets.manifest.cars` before deployment. `alfa-romeo-t332.glb` is supplied
+and explicitly registered. Its wheel parts were separated into four named
+assemblies without changing their geometry/textures; separate badge meshes were
+named for removal, and the export's slight tilt is corrected in the manifest.
