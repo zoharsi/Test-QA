@@ -552,7 +552,7 @@ const World = {
       if (Neighborhood.onBridge(placements[i][0], placements[i][1], -3)) placements.splice(i, 1);
     }
     for (const [x, z, s] of trees) this.addCollider(x - 0.35 * s, x + 0.35 * s, z - 0.35 * s, z + 0.35 * s, 6, true);
-    for (const [x, z, s, , y] of palms) if (y === undefined) this.addCollider(x - 0.3, x + 0.3, z - 0.3, z + 0.3, 9, true);
+    for (const [x, z, s] of palms) this.addCollider(x - 0.3 * s, x + 0.3 * s, z - 0.3 * s, z + 0.3 * s, 9, true);
 
     // Keep the procedural fallback only when either uploaded model cannot load.
     if (!ImportedTrees.build(this, trees, palms)) {
@@ -607,6 +607,8 @@ const World = {
     lamps.forEach(([x, z, a], k) => {
       dummy.position.set(x, 0.25, z); dummy.rotation.set(0, a, 0); dummy.scale.set(1, 1, 1); dummy.updateMatrix();
       pole.setMatrixAt(k, dummy.matrix); head.setMatrixAt(k, dummy.matrix);
+      // Collide with the ground-level pole, not the overhead arm or light halo.
+      this.addCollider(x - 0.13, x + 0.13, z - 0.13, z + 0.13, 7.85, true);
       dummy.position.set(x + Math.sin(a) * 2.6, 0.04, z + Math.cos(a) * 2.6); dummy.rotation.set(-Math.PI / 2, 0, 0); dummy.scale.set(11, 11, 1); dummy.updateMatrix();
       glow.setMatrixAt(k, dummy.matrix);
     });
@@ -631,6 +633,7 @@ const World = {
     poles.forEach(([x, z], k) => {
       dummy.rotation.set(0, 0, 0); dummy.scale.set(1, 1, 1);
       dummy.position.set(x, 0.25, z); dummy.updateMatrix(); sp.setMatrixAt(k, dummy.matrix);
+      this.addCollider(x - 0.12, x + 0.12, z - 0.12, z + 0.12, 6.275, true);
       dummy.position.set(x, 5.85, z + 0.23); dummy.updateMatrix(); lz.setMatrixAt(k * 2, dummy.matrix);
       dummy.position.set(x, 5.85, z - 0.23); dummy.updateMatrix(); lz.setMatrixAt(k * 2 + 1, dummy.matrix);
       dummy.position.set(x + 0.23, 5.85, z); dummy.updateMatrix(); lx.setMatrixAt(k * 2, dummy.matrix);
