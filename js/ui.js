@@ -23,7 +23,7 @@ const UI = {
     this.miniCtx = this.mini.getContext('2d');
     this.big = this.el['bigmap-c']; this.bigCtx = this.big.getContext('2d');
     this.big.addEventListener('click', e => this.mapClick(e));
-    this.big.addEventListener('contextmenu', e => { e.preventDefault(); Game.waypoint = null; Game.route = []; this.drawBigMap(); });
+    this.big.addEventListener('contextmenu', e => { e.preventDefault(); Navigation.cancel(true); this.drawBigMap(); });
     document.querySelectorAll('[data-act]').forEach(b => {
       b.addEventListener('click', () => { Sound.click(); Game.action(b.dataset.act); });
       b.addEventListener('mouseenter', () => Sound.hover());
@@ -265,8 +265,8 @@ const UI = {
     const r = this.big.getBoundingClientRect(), { size, ox, oy } = this.bigT, E = World.mapExtent;
     const x = ((e.clientX - r.left - ox) / size) * 2 * E - E, z = ((e.clientY - r.top - oy) / size) * 2 * E - E;
     if ((Math.abs(x) > CITY.HALF + 8 || Math.abs(z) > CITY.HALF + 8) && !Neighborhood.contains(x, z) && !Neighborhood.onBridge(x, z)) return;
-    Game.waypoint = { x, z }; Game.updateRoute(); Sound.click();
-    this.drawBigMap();
+    Sound.click(); Navigation.travel(x, z);
+    if (Game.state === 'map') this.drawBigMap();
   },
 
   /* ---------------- panels ---------------- */
@@ -293,7 +293,7 @@ const UI = {
         ${row(['H'], 'Horn')}${row(['Q'], 'Switch radio station')}${row(['V'], 'Camera view')}${row(['C'], 'Look back')}${row(['F'], 'Exit vehicle')}
       </section>
       <section><h3>General</h3>
-        ${row(['M'], 'Full map, click to set waypoint')}${row(['Esc'], 'Pause menu')}${row(['P'], 'Pause')}
+        ${row(['M'], 'Map: click to teleport on foot / auto-drive in car')}${row(['Esc'], 'Pause menu')}${row(['P'], 'Pause')}
         <p class="note">Arrow keys work too. If your browser blocks pointer lock, drag with the mouse button held to look around.</p>
       </section></div>`;
   },

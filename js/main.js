@@ -110,6 +110,7 @@ const Game = {
     else if (a === 'quit') { UI.hide('pause'); this.save(); this.toMenu(); }
   },
   toMenu() {
+    Navigation.cancel(true);
     this.state = 'menu';
     UI.hide('hud'); UI.hide('pause'); UI.closeMap(); UI.show('menu');
     this.camLambda = 2; this.muteLoops();
@@ -157,6 +158,9 @@ const Game = {
   onKey(code) {
     if (UI.isPanelOpen()) { if (code === 'Escape') UI.closePanel(); return; }
     if (this.state === 'playing') {
+      if (Navigation.drive && ['KeyW', 'KeyA', 'KeyS', 'KeyD', 'ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight', 'Space'].includes(code)) {
+        Navigation.cancel(true); UI.toast('Automatic driving cancelled', 'You are driving manually.', 'info');
+      }
       if (code === 'KeyM') this.openMap();
       else if (code === 'KeyP' || (code === 'Escape' && !document.pointerLockElement)) this.pause();
     } else if (this.state === 'paused') {
@@ -194,6 +198,7 @@ const Game = {
     if (playing && Player.mode === 'foot' && !Player.dead) Player.updateFoot(dt, this.footInput(), this.cam.yaw);
     else if (Player.mode === 'foot') Player.ch.animate(dt, 0);
 
+    if (playing) Navigation.update(dt);
     Traffic.update(dt, F.x, F.z);
     for (const v of Vehicles.all) v.update(dt);
     Vehicles.collide();
@@ -238,10 +243,15 @@ const Game = {
     if (Player.dead) return;
     if (Player.mode === 'car') {
       const v = Player.vehicle, inp = v.input;
+      if (Navigation.drive && I.down('KeyW', 'KeyA', 'KeyS', 'KeyD', 'ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight', 'Space')) {
+        Navigation.cancel(true); UI.toast('Automatic driving cancelled', 'You are driving manually.', 'info');
+      }
+      if (!Navigation.drive) {
       inp.throttle = I.down('KeyW', 'ArrowUp') ? 1 : 0;
       inp.brake = I.down('KeyS', 'ArrowDown') ? 1 : 0;
       inp.steer = (I.down('KeyA', 'ArrowLeft') ? 1 : 0) - (I.down('KeyD', 'ArrowRight') ? 1 : 0);
       inp.handbrake = I.down('Space');
+      }
       const horn = I.down('KeyH');
       Sound.setHorn(horn);
       if (horn && Math.random() < 0.08) Peds.scareAround(v.pos.x, v.pos.z, 14);
@@ -298,6 +308,7 @@ const Game = {
     if (Radio.current) setTimeout(() => { if (Player.vehicle === v) UI.radio(Radio.current); }, 700);
   },
   exitVehicle() {
+    Navigation.cancel(true);
     const v = Player.exit();
     if (!v) return;
     this.cam.yaw = v.heading; this.cam.pitch = 0.16;
@@ -462,6 +473,7 @@ const Game = {
   /* ---------------- navigation ---------------- */
   updateRoute() {
     this.routeT = 0.5;
+    if (Navigation.drive) return;
     const m = Missions.targetPos(), t = m || this.waypoint;
     if (!t) { this.route = []; return; }
     const P = Player.focus();
