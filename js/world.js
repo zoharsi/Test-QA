@@ -332,6 +332,14 @@ const World = {
     const R = (a, b) => a + rng() * (b - a), P = arr => arr[Math.floor(rng() * arr.length)];
     const { BLOCK, ROAD, GRID, WALK, HALF } = CITY;
     const G = { office: new GeoBuilder(), res: new GeoBuilder(), house: new GeoBuilder(), roof: new GeoBuilder(), tile: new GeoBuilder() };
+    // Consume the same procedural RNG calls even when a GLB replaces a lot.
+    // This keeps downtown, parks, billboards and the rest of the layout stable.
+    const noop = { box() {}, pyramid() {} };
+    const skipped = { res: noop, house: noop, roof: noop, tile: noop };
+    const assetRng = mulberry32(9017);
+    this.assetBuildingBatches = new Map();
+    const placeAsset = (x, z, w, d, block) => Assets.placeBuilding(this,
+      Math.floor(assetRng() * Assets.manifest.buildings.length), { x, z, w, d }, block);
     const C = hex => new THREE.Color(hex);
     const OFF = ['#e3e9f0', '#c4d0dc', '#a9bccd', '#ebe4d7', '#d0d9e0', '#94a8ba', '#b8b0a4'].map(C);
     const RES = ['#f0e2cc', '#e9c7a3', '#d8b597', '#cdd7c4', '#e7d1c0', '#f3e7d3', '#c9b6a3', '#e2bfae'].map(C);
@@ -390,35 +398,42 @@ const World = {
           if (rng() < 0.1) { this.lawns.push([lx, lz, half - 2, half - 2]); continue; }
           const w = R(16, half - 2), dd = R(16, half - 2), h = R(12, 44) * (1.25 - d * 0.5);
           const x = lx + (qa ? 1 : -1) * (half - w) / 2 * 0.8, z = lz + (qb ? 1 : -1) * (half - dd) / 2 * 0.8;
+          const imported = placeAsset(x, z, w, dd, b), g = imported ? skipped : G;
           const tint = P(RES), uo = Math.floor(rng() * 3) / 3;
-          G.res.box({ x, z, w, h, d: dd, col: tint, tw: 9, th: 9, uo, roof: G.roof, roofCol: P(FLAT) });
-          this.addCollider(x - w / 2, x + w / 2, z - dd / 2, z + dd / 2, h);
+          g.res.box({ x, z, w, h, d: dd, col: tint, tw: 9, th: 9, uo, roof: g.roof, roofCol: P(FLAT) });
+          if (!imported) this.addCollider(x - w / 2, x + w / 2, z - dd / 2, z + dd / 2, h);
           const r2 = rng();
-          if (r2 < 0.32) G.res.box({ x, y: h, z, w: w * 0.6, h: R(4, 12), d: dd * 0.6, col: tint, tw: 9, th: 9, uo, vo: h / 9, roof: G.roof, roofCol: P(FLAT) });
-          else if (r2 < 0.65) G.roof.box({ x, y: h, z, w: w * 0.3, h: 2.2, d: dd * 0.3, col: P(FLAT), tw: 4, th: 4, roof: G.roof });
-          if (h < 34 && rng() < 0.45) this.billboardSpots.push({ x, z, y: h, w, d: dd, qa, qb });
+          if (r2 < 0.32) g.res.box({ x, y: h, z, w: w * 0.6, h: R(4, 12), d: dd * 0.6, col: tint, tw: 9, th: 9, uo, vo: h / 9, roof: g.roof, roofCol: P(FLAT) });
+          else if (r2 < 0.65) g.roof.box({ x, y: h, z, w: w * 0.3, h: 2.2, d: dd * 0.3, col: P(FLAT), tw: 4, th: 4, roof: g.roof });
+          if (h < 34 && rng() < 0.45 && !imported) this.billboardSpots.push({ x, z, y: h, w, d: dd, qa, qb });
         }
       } else {
         this.lawns.push([cx, cz, inner, inner]);
         if (rng() < 0.22) {
           const w = inner - 8, dd = R(16, 22), h = R(5, 8), z = cz + R(-6, 6);
-          G.res.box({ x: cx, z, w, h, d: dd, col: P(RES), tw: 9, th: h, roof: G.roof, roofCol: P(FLAT) });
-          this.addCollider(cx - w / 2, cx + w / 2, z - dd / 2, z + dd / 2, h);
-          if (rng() < 0.6) this.billboardSpots.push({ x: cx, z, y: h, w, d: dd, qa: rng() < 0.5 ? 0 : 1, qb: 0 });
+          const imported = placeAsset(cx, z, w, dd, b), g = imported ? skipped : G;
+          g.res.box({ x: cx, z, w, h, d: dd, col: P(RES), tw: 9, th: h, roof: g.roof, roofCol: P(FLAT) });
+          if (!imported) this.addCollider(cx - w / 2, cx + w / 2, z - dd / 2, z + dd / 2, h);
+          if (rng() < 0.6) {
+            const spot = { x: cx, z, y: h, w, d: dd, qa: rng() < 0.5 ? 0 : 1, qb: 0 };
+            if (!imported) this.billboardSpots.push(spot);
+          }
         } else {
           const n = rng() < 0.5 ? 2 : 3, cell = inner / n;
           for (let a = 0; a < n; a++) for (let e = 0; e < n; e++) {
             if (n === 3 && a === 1 && e === 1) continue;
             const w = R(cell * 0.5, cell * 0.72), dd = R(cell * 0.5, cell * 0.72), h = rng() < 0.3 ? R(6.5, 8) : R(3.6, 4.6);
             const x = ix + cell * (a + 0.5), z = iz + cell * (e + 0.5);
-            G.house.box({ x, z, w, h, d: dd, col: P(HOU), tw: 8, th: h > 6 ? h / 2 : h, uo: Math.floor(rng() * 2) / 2 });
-            G.tile.pyramid(x, h, z, w + 0.9, dd + 0.9, R(1.8, 3.2), P(TILE));
-            this.addCollider(x - w / 2, x + w / 2, z - dd / 2, z + dd / 2, h + 2);
+            const imported = placeAsset(x, z, w, dd, b), g = imported ? skipped : G;
+            g.house.box({ x, z, w, h, d: dd, col: P(HOU), tw: 8, th: h > 6 ? h / 2 : h, uo: Math.floor(rng() * 2) / 2 });
+            g.tile.pyramid(x, h, z, w + 0.9, dd + 0.9, R(1.8, 3.2), P(TILE));
+            if (!imported) this.addCollider(x - w / 2, x + w / 2, z - dd / 2, z + dd / 2, h + 2);
           }
         }
       }
     }
 
+    Assets.flushBuildings(this);
     const mk = (b, mat) => { const m = new THREE.Mesh(b.build(), mat); m.castShadow = true; m.receiveShadow = true; this.scene.add(m); return m; };
     mk(G.office, this.mats.office); mk(G.res, this.mats.res); mk(G.house, this.mats.house); mk(G.roof, this.mats.roof); mk(G.tile, this.mats.tile);
 

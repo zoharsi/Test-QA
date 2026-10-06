@@ -8,6 +8,9 @@ const CarMats = {};
 const carMat = (key, make) => CarMats[key] || (CarMats[key] = make());
 
 function buildCar(spec, color) {
+  const type = Object.keys(VEHICLES).find(key => VEHICLES[key] === spec);
+  const asset = Assets.car(type);
+  if (asset) return buildAssetCar(spec, color, asset);
   const root = new THREE.Group(), body = new THREE.Group();
   root.add(body);
   const L = spec.len, W = spec.wid, H = spec.hgt;
@@ -78,6 +81,80 @@ function buildCar(spec, color) {
   const shadow = new THREE.Mesh(UNIT_PLANE, World.blobMat);
   shadow.rotation.x = -Math.PI / 2; shadow.position.y = 0.03; shadow.scale.set(W * 1.6, L * 1.25, 1);
   root.add(shadow);
+  return { root, body, wheels, tailM, paintMeshes, headMeshes, bar };
+}
+
+// Visual adapter only: Vehicle's physics dimensions and controls stay unchanged.
+function buildAssetCar(spec, color, asset) {
+  const root = new THREE.Group(), body = new THREE.Group();
+  const model = Assets.normalize(asset, 'z', spec.len);
+  root.add(body); body.add(model);
+  root.userData.assetFile = asset.file;
+  const paintMeshes = [], headMeshes = [], wheels = [], wheelNodes = [];
+  const ownedMaterials = new Map();
+  model.traverse(node => {
+    if (node.isMesh) {
+      node.castShadow = node.receiveShadow = true;
+      const materials = Array.isArray(node.material) ? node.material : [node.material];
+      if (materials.some(m => /body|paint/i.test(m.name))) {
+        paintMeshes.push(node);
+        const copies = materials.map(material => {
+          if (!/body|paint/i.test(material.name)) return material;
+          if (!ownedMaterials.has(material)) {
+            const copy = material.clone();
+            if (!spec.taxi && !spec.police && copy.color) copy.color.setHex(color);
+            ownedMaterials.set(material, copy);
+          }
+          return ownedMaterials.get(material);
+        });
+        node.material = Array.isArray(node.material) ? copies : copies[0];
+      }
+      if (/headlight/i.test(node.name) || materials.some(m => /headlight/i.test(m.name))) headMeshes.push(node);
+    }
+    if (/wheel/i.test(node.name) && !node.isSkinnedMesh) {
+      let ancestor = node.parent, nested = false;
+      while (ancestor && ancestor !== model) {
+        if (/wheel/i.test(ancestor.name)) nested = true;
+        ancestor = ancestor.parent;
+      }
+      if (!nested) wheelNodes.push(node);
+    }
+  });
+  root.userData.ownedMaterials = [...ownedMaterials.values()];
+  root.updateMatrixWorld(true);
+  const bounds = new THREE.Box3().setFromObject(model);
+  const width = bounds.max.x - bounds.min.x, height = bounds.max.y;
+  for (const node of wheelNodes) {
+    const wheelBounds = new THREE.Box3().setFromObject(node);
+    if (wheelBounds.isEmpty()) continue;
+    const pivot = new THREE.Group(), spin = new THREE.Group();
+    pivot.position.copy(wheelBounds.getCenter(new THREE.Vector3()));
+    root.add(pivot); pivot.add(spin);
+    // Keep authored mesh rotation/scale, but rotate around the wheel's own center.
+    spin.attach(node);
+    wheels.push({ pivot, spin, front: pivot.position.z > 0 });
+  }
+  const part = (material, w, h, d, x, y, z) => {
+    const mesh = new THREE.Mesh(UNIT_BOX, material);
+    mesh.scale.set(w, h, d); mesh.position.set(x, y, z); body.add(mesh);
+    return mesh;
+  };
+  const tailM = new THREE.MeshStandardMaterial({ color: 0x4a0000, emissive: 0xff1a1a, emissiveIntensity: 0.4 });
+  for (const side of [-1, 1]) part(tailM, width * 0.2, 0.12, 0.06, side * width * 0.32, height * 0.4, -spec.len / 2 - 0.02);
+  let bar = null;
+  if (spec.police) {
+    const dark = carMat('dark', () => new THREE.MeshStandardMaterial({ color: 0x121315, roughness: 0.7 }));
+    const red = new THREE.MeshStandardMaterial({ color: 0x330000, emissive: 0xff1a2e, emissiveIntensity: 0.2 });
+    const blue = new THREE.MeshStandardMaterial({ color: 0x000a33, emissive: 0x1a5cff, emissiveIntensity: 0.2 });
+    const z = spec.cabZ * spec.len * 0.5;
+    part(dark, width * 0.7, 0.08, 0.32, 0, height + 0.02, z);
+    part(red, width * 0.32, 0.14, 0.28, width * 0.18, height + 0.12, z);
+    part(blue, width * 0.32, 0.14, 0.28, -width * 0.18, height + 0.12, z);
+    bar = { red, blue };
+  }
+  const shadow = new THREE.Mesh(UNIT_PLANE, World.blobMat);
+  shadow.rotation.x = -Math.PI / 2; shadow.position.y = 0.03;
+  shadow.scale.set(spec.wid * 1.6, spec.len * 1.25, 1); root.add(shadow);
   return { root, body, wheels, tailM, paintMeshes, headMeshes, bar };
 }
 
@@ -223,6 +300,7 @@ const Vehicles = {
   remove(v) {
     World.scene.remove(v.mesh);
     v.tailM.dispose(); if (v.bar) { v.bar.red.dispose(); v.bar.blue.dispose(); }
+    for (const material of v.mesh.userData.ownedMaterials || []) material.dispose();
     const i = this.all.indexOf(v);
     if (i >= 0) this.all.splice(i, 1);
     v.removed = true;

@@ -34,9 +34,55 @@ class Character {
     const blob = new THREE.Mesh(UNIT_PLANE, World.blobMat);
     blob.rotation.x = -Math.PI / 2; blob.position.y = 0.02; blob.scale.set(0.95, 0.95, 1); g.add(blob);
     this.phase = Math.random() * 10; this.fall = 0; this.down = false; this.punchT = 0;
+    if (!o.player) this.setModel(Assets.person(), false);
     World.scene.add(g);
   }
+  setModel(asset, shadow) {
+    if (!asset) return;
+    const model = Assets.normalize(asset, 'y', 1.8);
+    model.traverse(node => {
+      if (node.isMesh) {
+        node.castShadow = !!shadow; node.receiveShadow = true;
+        // Animated vertices can leave the bind-pose bounding sphere in r128.
+        if (node.isSkinnedMesh) node.frustumCulled = false;
+      }
+    });
+    for (const child of this.body.children) child.visible = false;
+    this.body.add(model); this.model = model;
+    if (!asset.animations.length) return;
+    this.mixer = new THREE.AnimationMixer(asset.scene);
+    const find = pattern => asset.animations.find(clip => pattern.test(clip.name));
+    const first = asset.animations[0];
+    this.actions = {
+      idle: this.mixer.clipAction(find(/idle/i) || first),
+      walk: this.mixer.clipAction(find(/walk/i) || first),
+      run: this.mixer.clipAction(find(/run/i) || first),
+    };
+    const death = find(/death|die|fall/i);
+    if (death) {
+      this.actions.death = this.mixer.clipAction(death);
+      this.actions.death.setLoop(THREE.LoopOnce, 1);
+      this.actions.death.clampWhenFinished = true;
+    }
+    this.playAction('idle');
+  }
+  playAction(name) {
+    const action = this.actions && this.actions[name];
+    if (!action || (action === this.currentAction && name !== 'death')) return;
+    const previous = action === this.currentAction ? null : this.currentAction;
+    action.reset().setEffectiveTimeScale(1).setEffectiveWeight(1).play();
+    // A fallback clip can also be the death clip: restore looping for locomotion.
+    action.setLoop(name === 'death' ? THREE.LoopOnce : THREE.LoopRepeat, name === 'death' ? 1 : Infinity);
+    action.clampWhenFinished = name === 'death';
+    if (previous) action.crossFadeFrom(previous, 0.2, false);
+    this.currentAction = action;
+  }
   animate(dt, speed, running) {
+    if (this.mixer) {
+      this.punchT = Math.max(0, this.punchT - dt);
+      if (!this.down) this.playAction(speed < 0.2 ? 'idle' : running || speed > 4.5 ? 'run' : 'walk');
+      if (!this.down || this.actions.death) { this.mixer.update(dt); return; }
+    }
     if (this.down) { this.fall = Math.min(1, this.fall + dt * 4); this.root.rotation.x = -Math.PI / 2 * (1 - Math.pow(1 - this.fall, 3)); return; }
     this.phase += dt * speed * 3.4;
     const amp = Math.min(1, speed / 3) * (running ? 1 : 0.62), s = Math.sin(this.phase);
@@ -46,8 +92,24 @@ class Character {
     this.body.position.y = Math.abs(Math.cos(this.phase)) * 0.06 * amp;
     this.body.rotation.x = running ? 0.14 : 0.02 * amp;
   }
-  knockDown() { this.down = true; this.fall = 0; }
-  stand() { this.down = false; this.fall = 0; this.root.rotation.x = 0; }
+  knockDown() {
+    this.down = true; this.fall = 0;
+    if (this.mixer) this.playAction('death');
+  }
+  stand() {
+    this.down = false; this.fall = 0; this.root.rotation.x = 0;
+    if (this.mixer) {
+      this.mixer.stopAllAction(); this.currentAction = null;
+      this.playAction('idle'); this.mixer.update(0);
+    }
+  }
+  dispose() {
+    if (this.mixer) { this.mixer.stopAllAction(); this.mixer.uncacheRoot(this.mixer.getRoot()); }
+    if (this.model) this.model.traverse(node => {
+      if (node.isSkinnedMesh) node.skeleton.dispose();
+    });
+    World.scene.remove(this.root);
+  }
 }
 
 /* ---------------- Player ---------------- */
@@ -56,7 +118,7 @@ const Player = {
   health: 100, mode: 'foot', vehicle: null, dead: false, invuln: 0,
 
   async init() {
-    this.ch = new Character({ skin: 0xd6a07c, shirt: 0xeeeeea, pants: 0x27364f, hair: 0x15110e, shadow: true });
+    this.ch = new Character({ player: true, skin: 0xd6a07c, shirt: 0xeeeeea, pants: 0x27364f, hair: 0x15110e, shadow: true });
     this.pos = this.ch.root.position;
     try {
       await loadPlayerModel(this.ch);
@@ -223,11 +285,12 @@ class Ped {
 
 const Peds = {
   list: [], target: 36,
-  init(n, fx, fz) { for (let i = 0; i < n; i++) this.list.push(new Ped(fx, fz)); this.target = n; },
+  init(n, fx, fz) { n = Math.min(n, 45); for (let i = 0; i < n; i++) this.list.push(new Ped(fx, fz)); this.target = n; },
   setTarget(n, fx, fz) {
+    n = Math.min(n, 45);
     this.target = n;
     while (this.list.length < n) this.list.push(new Ped(fx, fz));
-    while (this.list.length > n) { const p = this.list.pop(); World.scene.remove(p.ch.root); }
+    while (this.list.length > n) { const p = this.list.pop(); p.ch.dispose(); }
   },
   update(dt, fx, fz) {
     for (const p of this.list) p.update(dt, fx, fz);

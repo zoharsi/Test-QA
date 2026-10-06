@@ -60,7 +60,8 @@ const Game = {
     this.camera.position.set(260, 120, 160);
     Input.init(canvas);
 
-    await World.build(this.scene, (p, s) => UI.loading(p, s));
+    await Assets.load(p => UI.loading(p * 0.18, 'טוען מודלים'));
+    await World.build(this.scene, (p, s) => UI.loading(0.18 + p * 0.82, s));
     FX.init(this.scene);
     Heli.build();
     UI.loading(0.84, 'Loading player model');
