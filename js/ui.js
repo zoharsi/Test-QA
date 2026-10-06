@@ -23,7 +23,7 @@ const UI = {
     this.miniCtx = this.mini.getContext('2d');
     this.big = this.el['bigmap-c']; this.bigCtx = this.big.getContext('2d');
     this.big.addEventListener('click', e => this.mapClick(e));
-    this.big.addEventListener('contextmenu', e => { e.preventDefault(); Game.waypoint = null; Game.route = []; this.drawBigMap(); });
+    this.big.addEventListener('contextmenu', e => { e.preventDefault(); Navigation.cancel(true); this.drawBigMap(); });
     document.querySelectorAll('[data-act]').forEach(b => {
       b.addEventListener('click', () => { Sound.click(); Game.action(b.dataset.act); });
       b.addEventListener('mouseenter', () => Sound.hover());
@@ -76,8 +76,8 @@ const UI = {
   },
   radio(st) {
     const e = this.el['radio-pop'];
-    e.querySelector('.r-name').textContent = st ? st.name : 'רדיו כבוי';
-    e.querySelector('.r-genre').textContent = st ? st.genre : 'Q להדלקה';
+    e.querySelector('.r-name').textContent = st ? st.name : 'Radio off';
+    e.querySelector('.r-genre').textContent = st ? st.genre : 'Q to turn on';
     e.classList.add('on');
     this.later('radio', 2600, () => e.classList.remove('on'));
   },
@@ -229,15 +229,17 @@ const UI = {
     g.fillStyle = '#071722'; g.fillRect(0, 0, W, H);
     const size = Math.min(W, H) * 0.9, ox = (W - size) / 2, oy = (H - size) / 2, E = World.mapExtent, px = size / (2 * E);
     this.bigT = { size, ox, oy };
-    g.drawImage(World.mapCanvas, ox, oy, size, size);
+    g.drawImage(AerialMap.canvas || World.mapCanvas, ox, oy, size, size);
     const X = x => ox + (x + E) * px, Y = z => oy + (z + E) * px;
 
     g.textAlign = 'center'; g.textBaseline = 'middle';
     g.font = `500 ${Math.max(11, size * 0.017)}px Heebo, Arial, sans-serif`;
-    g.fillStyle = 'rgba(244,241,232,0.42)';
-    const labels = [[0, 0, 'דאונטאון'], [0, -270, 'נורת׳ היל'], [0, 270, 'רובע הנמל'], [270, 0, 'מזרח העיר'], [-270, 0, 'רובע האמנים'],
-      [0, -440, 'גבעות אוריליו'], [0, 440, 'חוף הזהב'], [440, 0, 'פאלם ויסטה'], [-440, 0, 'סאנסט פלאטס']];
-    for (const [x, z, t] of labels) g.fillText(t, X(x), Y(z));
+    g.fillStyle = 'rgba(244,241,232,0.75)';
+    const labels = [[0, 0, 'Downtown'], [0, -270, 'North Hill'], [0, 270, 'Harbor District'], [270, 0, 'East Side'], [-270, 0, 'Arts District'],
+      [0, -440, 'Aurelio Hills'], [0, 440, 'Gold Coast'], [540, 65, 'Palm Vista'], [-540, -65, 'Sunset Flats']];
+    if (Neighborhood.bounds) labels.push([CITY.CELL, Neighborhood.bounds.minZ + 35, 'London District']);
+    g.strokeStyle = 'rgba(8,20,25,0.85)'; g.lineWidth = 3; g.lineJoin = 'round';
+    for (const [x, z, t] of labels) { g.strokeText(t, X(x), Y(z)); g.fillText(t, X(x), Y(z)); }
 
     if (Game.route.length > 1) {
       g.strokeStyle = '#b47cff'; g.lineWidth = 4; g.lineCap = g.lineJoin = 'round'; g.beginPath();
@@ -247,12 +249,12 @@ const UI = {
     const dot = (x, z, color, r, label) => {
       g.fillStyle = color; g.strokeStyle = '#071722'; g.lineWidth = 2;
       g.beginPath(); g.arc(X(x), Y(z), r, 0, Math.PI * 2); g.fill(); g.stroke();
-      if (label) { g.fillStyle = '#f4f1e8'; g.font = '600 13px Heebo, Arial, sans-serif'; g.fillText(label, X(x), Y(z) - r - 10); }
+      if (label) { g.fillStyle = '#f4f1e8'; g.font = '600 13px Heebo, Arial, sans-serif'; g.lineWidth = 3; g.strokeText(label, X(x), Y(z) - r - 10); g.fillText(label, X(x), Y(z) - r - 10); }
     };
     if (!Missions.active) for (const gv of Missions.givers) dot(gv.x, gv.z, hex(gv.def.color), 7, gv.def.title);
     const t = Missions.targetPos();
-    if (t) dot(t.x, t.z, t.race ? '#3ee6c1' : '#ffc247', 8, 'יעד');
-    if (Game.waypoint) dot(Game.waypoint.x, Game.waypoint.z, '#b47cff', 7, 'נקודת ציון');
+    if (t) dot(t.x, t.z, t.race ? '#3ee6c1' : '#ffc247', 8, 'Target');
+    if (Game.waypoint) dot(Game.waypoint.x, Game.waypoint.z, '#b47cff', 7, 'Waypoint');
     for (const v of Vehicles.all) if (v.ai instanceof PoliceDriver && !v.dead) dot(v.pos.x, v.pos.z, '#ff3b4a', 4);
     const P = Player.focus(), hd = Player.mode === 'car' && Player.vehicle ? Player.vehicle.heading : Player.facing;
     g.save(); g.translate(X(P.x), Y(P.z)); g.rotate(Math.atan2(Math.cos(hd), Math.sin(hd)) + Math.PI / 2);
@@ -263,14 +265,14 @@ const UI = {
     if (!this.bigT) return;
     const r = this.big.getBoundingClientRect(), { size, ox, oy } = this.bigT, E = World.mapExtent;
     const x = ((e.clientX - r.left - ox) / size) * 2 * E - E, z = ((e.clientY - r.top - oy) / size) * 2 * E - E;
-    if (Math.abs(x) > CITY.HALF + 8 || Math.abs(z) > CITY.HALF + 8) return;
-    Game.waypoint = { x, z }; Game.updateRoute(); Sound.click();
-    this.drawBigMap();
+    if ((Math.abs(x) > CITY.HALF + 8 || Math.abs(z) > CITY.HALF + 8) && !Neighborhood.contains(x, z) && !Neighborhood.onBridge(x, z)) return;
+    Sound.click(); Navigation.travel(x, z);
+    if (Game.state === 'map') this.drawBigMap();
   },
 
   /* ---------------- panels ---------------- */
   openPanel(kind) {
-    const titles = { controls: 'שליטה', settings: 'הגדרות', about: 'על המשחק' };
+    const titles = { controls: 'Controls', settings: 'Settings', about: 'About' };
     this.el['panel-title'].textContent = titles[kind];
     this.el['panel-body'].innerHTML = this['panel_' + kind]();
     if (kind === 'settings') this.bindSettings();
@@ -283,34 +285,37 @@ const UI = {
   panel_controls() {
     const row = (keys, label) => `<div class="kr"><span class="keys">${keys.map(k => `<kbd>${k}</kbd>`).join('')}</span><span>${label}</span></div>`;
     return `<div class="ctl-grid">
-      <section><h3>ברגל</h3>
-        ${row(['W', 'A', 'S', 'D'], 'תנועה')}${row(['Shift'], 'ריצה')}${row(['רווח'], 'קפיצה')}
-        ${row(['עכבר'], 'מבט מסביב')}${row(['קליק'], 'אגרוף')}${row(['F'], 'כניסה לרכב / השתלטות')}${row(['E'], 'התחלת משימה')}
+      <section><h3>On foot</h3>
+        ${row(['W', 'A', 'S', 'D'], 'Move')}${row(['Shift'], 'Sprint')}${row(['Space'], 'Jump')}
+        ${row(['Mouse'], 'Look around')}${row(['Click'], 'Punch / fire equipped weapon')}${row(['1', '2'], 'Equip M4 (first-person)')}${row(['R'], 'Reload')}${row(['0'], 'Holster / third-person')}${row(['F'], 'Enter / hijack vehicle')}${row(['E'], 'Start mission')}
       </section>
-      <section><h3>ברכב</h3>
-        ${row(['W'], 'גז')}${row(['S'], 'בלם ורוורס')}${row(['A', 'D'], 'היגוי')}${row(['רווח'], 'בלם יד, החלקה')}
-        ${row(['H'], 'צופר')}${row(['Q'], 'החלפת תחנת רדיו')}${row(['V'], 'זווית מצלמה')}${row(['C'], 'מבט לאחור')}${row(['F'], 'יציאה מהרכב')}
+      <section><h3>In vehicle</h3>
+        ${row(['W'], 'Accelerate')}${row(['S'], 'Brake / reverse')}${row(['A', 'D'], 'Steer')}${row(['Space'], 'Handbrake, drift')}
+        ${row(['H'], 'Horn')}${row(['Q'], 'Switch radio station')}${row(['V'], 'Camera view')}${row(['C'], 'Look back')}${row(['F'], 'Exit vehicle')}
       </section>
-      <section><h3>כללי</h3>
-        ${row(['M'], 'מפה מלאה, קליק לסימון יעד')}${row(['Esc'], 'עצירה ותפריט')}${row(['P'], 'עצירה')}
-        <p class="note">אפשר לשחק גם בחיצים. אם הדפדפן חוסם נעילת עכבר, גרור עם לחצן לחוץ כדי להסתובב.</p>
+      <section><h3>General</h3>
+        ${row(['M'], 'Map: click to teleport on foot / auto-drive in car')}${row(['Esc'], 'Pause menu')}${row(['P'], 'Pause')}
+        <p class="note">Arrow keys work too. If your browser blocks pointer lock, drag with the mouse button held to look around.</p>
       </section></div>`;
   },
   panel_settings() {
-    const s = Game.settings, q = k => `<button class="seg${s.quality === k ? ' sel' : ''}" data-q="${k}">${{ low: 'נמוכה', medium: 'בינונית', high: 'גבוהה' }[k]}</button>`;
+    const s = Game.settings, q = k => `<button class="seg${s.quality === k ? ' sel' : ''}" data-q="${k}">${{ low: 'Low', medium: 'Medium', high: 'High' }[k]}</button>`;
     const sl = (id, label, v, min, max, step) => `<label class="sl"><span>${label}</span><input type="range" id="set-${id}" min="${min}" max="${max}" step="${step}" value="${v}"></label>`;
     return `<div class="set">
-      <div class="set-row"><span class="set-l">איכות גרפיקה</span><div class="segs" role="group">${q('low')}${q('medium')}${q('high')}</div></div>
-      <p class="note">נמוכה מכבה צללים ומקצרת את טווח הראייה. מומלץ למחשבים ניידים.</p>
-      ${sl('sfx', 'אפקטים', s.sfx, 0, 1, 0.05)}${sl('music', 'רדיו ומוזיקה', s.music, 0, 1, 0.05)}${sl('sens', 'רגישות עכבר', s.sens, 0.3, 2.5, 0.05)}
-      <label class="chk"><input type="checkbox" id="set-fps"${s.fps ? ' checked' : ''}> הצג מונה FPS</label>
-      <button class="text-btn" id="set-reset">אפס התקדמות שמורה</button></div>`;
+      <div class="set-row"><span class="set-l">Graphics quality</span><div class="segs" role="group">${q('low')}${q('medium')}${q('high')}</div></div>
+      <p class="note">Low disables shadows and shortens draw distance. Recommended for laptops.</p>
+      ${sl('sfx', 'Sound effects', s.sfx, 0, 1, 0.05)}${sl('music', 'Radio & music', s.music, 0, 1, 0.05)}${sl('sens', 'Mouse sensitivity', s.sens, 0.3, 2.5, 0.05)}
+      <label class="chk"><input type="checkbox" id="set-fps"${s.fps ? ' checked' : ''}> Show FPS counter</label>
+      <button class="text-btn" id="set-reset">Reset saved progress</button></div>`;
   },
   panel_about() {
     return `<div class="about">
-      <p>San Aurelio הוא משחק עולם פתוח מקורי שרץ כולו בדפדפן. העיר, המכוניות, הצלילים והמוזיקה נוצרים בקוד בכל טעינה, בלי קבצי מדיה.</p>
-      <p>כל השמות, המותגים והמקומות בדיוניים. המשחק לא קשור לאף מפתח או סדרת משחקים קיימת.</p>
-      <p class="note">נבנה עם Three.js r128 ו־Web Audio API.</p></div>`;
+      <p>San Aurelio is an original open-world game that runs entirely in the browser. The city, cars, sounds and music are generated in code on every load, with no media files.</p>
+      <p>All names, brands and places are fictional. The game is not affiliated with any existing developer or game series.</p>
+      <p class="note">Built with Three.js r128 and the Web Audio API.</p>
+      <p class="note">Los Angeles Police Department Car by <a href="https://sketchfab.com/hruschak30" target="_blank" rel="noopener">hruschak30</a>, licensed under <a href="https://creativecommons.org/licenses/by/4.0/" target="_blank" rel="noopener">CC BY 4.0</a>. <a href="https://sketchfab.com/3d-models/los-angeles-police-department-car-9102f6469b3b4477827b4a480fcc2c2e" target="_blank" rel="noopener">Original model</a>. Runtime scaling and flashing lights applied.</p>
+      <p class="note">M4 - FPS Weapon Animations Pack (v.1) by BarcodeGames, licensed under CC BY 4.0. <a href="https://sketchfab.com/3d-models/m4-fps-weapon-animations-pack-v1-662fc74dda2646cfb48fc610705768ef" target="_blank" rel="noopener">Original model</a> · <a href="https://creativecommons.org/licenses/by/4.0/" target="_blank" rel="noopener">License</a>. The two uploaded versions contain the same model.</p>
+      <p class="note">Trees: <a href="https://sketchfab.com/3d-models/willow-tree-7bd70b487fae4f3eb70d4e69394e97b4" target="_blank" rel="noopener">Willow Tree</a> by vervoortward and <a href="https://sketchfab.com/3d-models/tree-animate-f0f9eb5e6c104bbb8e1f41c97019e6f2" target="_blank" rel="noopener">Tree Animate</a> by RandyGF, licensed under <a href="https://creativecommons.org/licenses/by/4.0/" target="_blank" rel="noopener">CC BY 4.0</a>. Runtime scaling, foliage cutouts and instancing applied.</p></div>`;
   },
   bindSettings() {
     const s = Game.settings, body = this.el['panel-body'];
@@ -326,7 +331,7 @@ const UI = {
     body.querySelector('#set-fps').addEventListener('change', e => { s.fps = e.target.checked; Game.applySettings(); Game.save(); });
     body.querySelector('#set-reset').addEventListener('click', () => {
       Game.money = 2500; Game.completed = []; Game.save();
-      this.toast('ההתקדמות אופסה', 'הכסף חזר ל־' + ltr('$2,500') + '.', 'ok');
+      this.toast('Progress reset', 'Cash restored to ' + ltr('$2,500') + '.', 'ok');
     });
   },
 };

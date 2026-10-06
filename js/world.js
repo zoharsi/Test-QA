@@ -60,8 +60,8 @@ function mergeGeos(list) {
 
 const SKY = {
   DAY_TOP: new THREE.Color(0x2f74c9), DAY_HOR: new THREE.Color(0xb9d3e6),
-  DUSK_TOP: new THREE.Color(0x2b3769), DUSK_HOR: new THREE.Color(0xff8a4f),
-  NIGHT_TOP: new THREE.Color(0x03060f), NIGHT_HOR: new THREE.Color(0x111a2e),
+  DUSK_TOP: new THREE.Color(0x3a2a6e), DUSK_HOR: new THREE.Color(0xff6a8a),
+  NIGHT_TOP: new THREE.Color(0x0a0820), NIGHT_HOR: new THREE.Color(0x2a1c3e),
   SUN: new THREE.Color(0xfff1dc), SUN_LOW: new THREE.Color(0xff8f4a), MOON: new THREE.Color(0x8ea6dc),
   MTN: new THREE.Color(0x1d2740), WATER_DAY: new THREE.Color(0x1a5a78), WATER_NIGHT: new THREE.Color(0x061522),
 };
@@ -75,22 +75,23 @@ const World = {
   async build(scene, progress) {
     this.scene = scene;
     const rng = mulberry32(20261006);
-    progress(0.06, 'משרטט את רשת הרחובות');
+    progress(0.06, 'Laying out the street grid');
     // billboards are painted with web fonts — give them a moment to arrive
     try { if (document.fonts && document.fonts.ready) await Promise.race([document.fonts.ready, wait(1500)]); } catch (e) { /* ignore */ }
     await wait(30);
     this.makeTextures();
     this.makeSkyAndLights();
+    Neighborhood.build(this);
     this.makeGround();
-    progress(0.2, 'צובע מעברי חצייה וקווי הפרדה'); await wait(30);
+    progress(0.2, 'Painting crosswalks and lane lines'); await wait(30);
     this.makeRoadMarkings();
-    progress(0.34, 'בונה גורדי שחקים'); await wait(30);
+    progress(0.34, 'Building skyscrapers'); await wait(30);
     this.makeBlocks(rng);
-    progress(0.58, 'שותל עצים ודקלים'); await wait(30);
+    progress(0.58, 'Planting trees and palms'); await wait(30);
     this.makeVegetation(rng);
-    progress(0.7, 'מדליק פנסי רחוב ורמזורים'); await wait(30);
+    progress(0.7, 'Switching on streetlights and signals'); await wait(30);
     this.makeStreetFurniture(rng);
-    progress(0.8, 'מצייר את מפת העיר'); await wait(30);
+    progress(0.8, 'Drawing the city map'); await wait(30);
     this.makeMapImage();
   },
 
@@ -175,6 +176,10 @@ const World = {
     this.tex = { asphalt, walk, grass, sand, blob, glow, beamGrad, waterN };
     walk.repeat.set(4, 4); grass.repeat.set(10, 10); sand.repeat.set(120, 120); waterN.repeat.set(300, 300);
 
+    // Canvas-painted building colors are sRGB, just like imported color maps.
+    // Decode before lighting so the final gamma pass does not wash out facades.
+    for (const f of [off, res, hou]) f.map.encoding = f.em.encoding = THREE.sRGBEncoding;
+    roofTex.encoding = THREE.sRGBEncoding;
     const facadeMat = (f, rough, metal) => new THREE.MeshStandardMaterial({ map: f.map, emissiveMap: f.em, emissive: 0xffffff, emissiveIntensity: 0.2, vertexColors: true, roughness: rough, metalness: metal });
     this.mats = {
       office: facadeMat(off, 0.42, 0.35),
@@ -245,7 +250,7 @@ const World = {
     s.add(this.stars);
 
     this.hemi = new THREE.HemisphereLight(0xbfd6ff, 0x2d2a26, 0.6); s.add(this.hemi);
-    this.amb = new THREE.AmbientLight(0x48506a, 0.15); s.add(this.amb);
+    this.amb = new THREE.AmbientLight(0xdce6dc, 0.3); s.add(this.amb);
     const sun = this.sun = new THREE.DirectionalLight(0xffffff, 2);
     sun.castShadow = true; sun.shadow.mapSize.set(2048, 2048);
     const sc = sun.shadow.camera; sc.left = -95; sc.right = 95; sc.top = 95; sc.bottom = -95; sc.near = 10; sc.far = 520;
@@ -258,7 +263,7 @@ const World = {
   makeGround() {
     const s = this.scene, S = CITY.HALF * 2 + CITY.ROAD;
     this.tex.asphalt.repeat.set(S / 12, S / 12);
-    const ground = new THREE.Mesh(new THREE.PlaneGeometry(S, S), new THREE.MeshStandardMaterial({ map: this.tex.asphalt, roughness: 0.93 }));
+    const ground = new THREE.Mesh(new THREE.PlaneGeometry(S, S), new THREE.MeshStandardMaterial({ map: this.tex.asphalt, roughness: 0.42, metalness: 0.25 }));
     ground.rotation.x = -Math.PI / 2; ground.receiveShadow = true; s.add(ground);
 
     const beach = new THREE.Mesh(new THREE.PlaneGeometry(S + 190, S + 190), new THREE.MeshStandardMaterial({ map: this.tex.sand, roughness: 1 }));
@@ -269,7 +274,13 @@ const World = {
 
     // seawall around the island
     const E = CITY.HALF + 8.6;
-    for (const [x, z, w, d] of [[0, E, S + 4, 0.9], [0, -E, S + 4, 0.9], [E, 0, 0.9, S + 4], [-E, 0, 0.9, S + 4]]) {
+    const walls = [[0, E, S + 4, 0.9], [E, 0, 0.9, S + 4], [-E, 0, 0.9, S + 4]];
+    if (Neighborhood.bridge) {
+      const left = Neighborhood.bridge.x - CITY.ROAD / 2 - 1, right = Neighborhood.bridge.x + CITY.ROAD / 2 + 1;
+      walls.push([(-S / 2 - 2 + left) / 2, -E, left + S / 2 + 2, 0.9],
+        [(right + S / 2 + 2) / 2, -E, S / 2 + 2 - right, 0.9]);
+    } else walls.push([0, -E, S + 4, 0.9]);
+    for (const [x, z, w, d] of walls) {
       const m = new THREE.Mesh(UNIT_BOX, this.mats.concrete); m.scale.set(w, 1.1, d); m.position.set(x, 0.55, z);
       m.castShadow = m.receiveShadow = true; s.add(m);
       this.addCollider(x - w / 2, x + w / 2, z - d / 2, z + d / 2, 1.1);
@@ -332,7 +343,15 @@ const World = {
     const R = (a, b) => a + rng() * (b - a), P = arr => arr[Math.floor(rng() * arr.length)];
     const { BLOCK, ROAD, GRID, WALK, HALF } = CITY;
     const G = { office: new GeoBuilder(), res: new GeoBuilder(), house: new GeoBuilder(), roof: new GeoBuilder(), tile: new GeoBuilder() };
-    const C = hex => new THREE.Color(hex);
+    // Consume the same procedural RNG calls even when a GLB replaces a lot.
+    // This keeps downtown, parks, billboards and the rest of the layout stable.
+    const noop = { box() {}, pyramid() {} };
+    const skipped = { res: noop, house: noop, roof: noop, tile: noop };
+    const assetRng = mulberry32(9017);
+    this.assetBuildingBatches = new Map();
+    const placeAsset = (x, z, w, d, block) => Assets.placeBuilding(this,
+      Math.floor(assetRng() * Assets.manifest.buildings.length), { x, z, w, d }, block);
+    const C = hex => new THREE.Color(hex).convertSRGBToLinear();
     const OFF = ['#e3e9f0', '#c4d0dc', '#a9bccd', '#ebe4d7', '#d0d9e0', '#94a8ba', '#b8b0a4'].map(C);
     const RES = ['#f0e2cc', '#e9c7a3', '#d8b597', '#cdd7c4', '#e7d1c0', '#f3e7d3', '#c9b6a3', '#e2bfae'].map(C);
     const HOU = ['#f7efe2', '#f3d9c6', '#e5efe1', '#f2e2b5', '#dde8f2', '#f4d3cd', '#ebdff0'].map(C);
@@ -390,35 +409,42 @@ const World = {
           if (rng() < 0.1) { this.lawns.push([lx, lz, half - 2, half - 2]); continue; }
           const w = R(16, half - 2), dd = R(16, half - 2), h = R(12, 44) * (1.25 - d * 0.5);
           const x = lx + (qa ? 1 : -1) * (half - w) / 2 * 0.8, z = lz + (qb ? 1 : -1) * (half - dd) / 2 * 0.8;
+          const imported = placeAsset(x, z, w, dd, b), g = imported ? skipped : G;
           const tint = P(RES), uo = Math.floor(rng() * 3) / 3;
-          G.res.box({ x, z, w, h, d: dd, col: tint, tw: 9, th: 9, uo, roof: G.roof, roofCol: P(FLAT) });
-          this.addCollider(x - w / 2, x + w / 2, z - dd / 2, z + dd / 2, h);
+          g.res.box({ x, z, w, h, d: dd, col: tint, tw: 9, th: 9, uo, roof: g.roof, roofCol: P(FLAT) });
+          if (!imported) this.addCollider(x - w / 2, x + w / 2, z - dd / 2, z + dd / 2, h);
           const r2 = rng();
-          if (r2 < 0.32) G.res.box({ x, y: h, z, w: w * 0.6, h: R(4, 12), d: dd * 0.6, col: tint, tw: 9, th: 9, uo, vo: h / 9, roof: G.roof, roofCol: P(FLAT) });
-          else if (r2 < 0.65) G.roof.box({ x, y: h, z, w: w * 0.3, h: 2.2, d: dd * 0.3, col: P(FLAT), tw: 4, th: 4, roof: G.roof });
-          if (h < 34 && rng() < 0.45) this.billboardSpots.push({ x, z, y: h, w, d: dd, qa, qb });
+          if (r2 < 0.32) g.res.box({ x, y: h, z, w: w * 0.6, h: R(4, 12), d: dd * 0.6, col: tint, tw: 9, th: 9, uo, vo: h / 9, roof: g.roof, roofCol: P(FLAT) });
+          else if (r2 < 0.65) g.roof.box({ x, y: h, z, w: w * 0.3, h: 2.2, d: dd * 0.3, col: P(FLAT), tw: 4, th: 4, roof: g.roof });
+          if (h < 34 && rng() < 0.45 && !imported) this.billboardSpots.push({ x, z, y: h, w, d: dd, qa, qb });
         }
       } else {
         this.lawns.push([cx, cz, inner, inner]);
         if (rng() < 0.22) {
           const w = inner - 8, dd = R(16, 22), h = R(5, 8), z = cz + R(-6, 6);
-          G.res.box({ x: cx, z, w, h, d: dd, col: P(RES), tw: 9, th: h, roof: G.roof, roofCol: P(FLAT) });
-          this.addCollider(cx - w / 2, cx + w / 2, z - dd / 2, z + dd / 2, h);
-          if (rng() < 0.6) this.billboardSpots.push({ x: cx, z, y: h, w, d: dd, qa: rng() < 0.5 ? 0 : 1, qb: 0 });
+          const imported = placeAsset(cx, z, w, dd, b), g = imported ? skipped : G;
+          g.res.box({ x: cx, z, w, h, d: dd, col: P(RES), tw: 9, th: h, roof: g.roof, roofCol: P(FLAT) });
+          if (!imported) this.addCollider(cx - w / 2, cx + w / 2, z - dd / 2, z + dd / 2, h);
+          if (rng() < 0.6) {
+            const spot = { x: cx, z, y: h, w, d: dd, qa: rng() < 0.5 ? 0 : 1, qb: 0 };
+            if (!imported) this.billboardSpots.push(spot);
+          }
         } else {
           const n = rng() < 0.5 ? 2 : 3, cell = inner / n;
           for (let a = 0; a < n; a++) for (let e = 0; e < n; e++) {
             if (n === 3 && a === 1 && e === 1) continue;
             const w = R(cell * 0.5, cell * 0.72), dd = R(cell * 0.5, cell * 0.72), h = rng() < 0.3 ? R(6.5, 8) : R(3.6, 4.6);
             const x = ix + cell * (a + 0.5), z = iz + cell * (e + 0.5);
-            G.house.box({ x, z, w, h, d: dd, col: P(HOU), tw: 8, th: h > 6 ? h / 2 : h, uo: Math.floor(rng() * 2) / 2 });
-            G.tile.pyramid(x, h, z, w + 0.9, dd + 0.9, R(1.8, 3.2), P(TILE));
-            this.addCollider(x - w / 2, x + w / 2, z - dd / 2, z + dd / 2, h + 2);
+            const imported = placeAsset(x, z, w, dd, b), g = imported ? skipped : G;
+            g.house.box({ x, z, w, h, d: dd, col: P(HOU), tw: 8, th: h > 6 ? h / 2 : h, uo: Math.floor(rng() * 2) / 2 });
+            g.tile.pyramid(x, h, z, w + 0.9, dd + 0.9, R(1.8, 3.2), P(TILE));
+            if (!imported) this.addCollider(x - w / 2, x + w / 2, z - dd / 2, z + dd / 2, h + 2);
           }
         }
       }
     }
 
+    Assets.flushBuildings(this);
     const mk = (b, mat) => { const m = new THREE.Mesh(b.build(), mat); m.castShadow = true; m.receiveShadow = true; this.scene.add(m); return m; };
     mk(G.office, this.mats.office); mk(G.res, this.mats.res); mk(G.house, this.mats.house); mk(G.roof, this.mats.roof); mk(G.tile, this.mats.tile);
 
@@ -449,13 +475,13 @@ const World = {
 
   makeBillboards(rng) {
     const brands = [
-      ['KAFÉ NOIR', 'קפה שחור כמו הלילה', '#1a1410', '#f3c27a'],
+      ['KAFÉ NOIR', 'Coffee black as night', '#1a1410', '#f3c27a'],
       ['VOLTA', 'ELECTRIC MOTORS', '#0e2a3a', '#5ef0ff'],
-      ['SUNRISE MOTEL', 'חדרים פנויים', '#ff7a3d', '#fff3d6'],
-      ['PIXL ONE', 'הטלפון הבא שלך', '#f2f2f2', '#141414'],
-      ['AURELIO FM', '104.4 · הרדיו של העיר', '#2a0f3a', '#ffb23f'],
-      ['LUNA COLA', 'טעם של קיץ', '#b0122b', '#ffffff'],
-      ['DRIFTWOOD', 'בירה מהחוף המערבי', '#20402c', '#f2e6c8'],
+      ['SUNRISE MOTEL', 'Vacancy', '#ff7a3d', '#fff3d6'],
+      ['PIXL ONE', 'Your next phone', '#f2f2f2', '#141414'],
+      ['AURELIO FM', '104.4 · The city radio', '#2a0f3a', '#ffb23f'],
+      ['LUNA COLA', 'Taste of summer', '#b0122b', '#ffffff'],
+      ['DRIFTWOOD', 'West Coast beer', '#20402c', '#f2e6c8'],
     ];
     const mats = brands.map(([t, sub, bg, fg]) => {
       const c = document.createElement('canvas'); c.width = 512; c.height = 200;
@@ -521,38 +547,45 @@ const World = {
       const [x, z] = side === 0 ? [t, o] : side === 1 ? [t, -o] : side === 2 ? [o, t] : [-o, t];
       palms.push([x, z, R(0.9, 1.25), rng(), -0.3]);
     }
-    for (const [x, z, s] of trees) this.addCollider(x - 0.35 * s, x + 0.35 * s, z - 0.35 * s, z + 0.35 * s, 6, true);
-    for (const [x, z, s, , y] of palms) if (y === undefined) this.addCollider(x - 0.3, x + 0.3, z - 0.3, z + 0.3, 9, true);
-
-    // broadleaf trees
-    const trunkGeo = new THREE.CylinderGeometry(0.2, 0.32, 3.2, 6); trunkGeo.translate(0, 1.6, 0);
-    const crownGeo = new THREE.IcosahedronGeometry(2.6, 1); crownGeo.translate(0, 4.8, 0);
-    const bark = new THREE.MeshStandardMaterial({ color: 0x5a4433, roughness: 1 });
-    const leaf = new THREE.MeshStandardMaterial({ color: 0xffffff, roughness: 0.9, flatShading: true });
-    const tT = new THREE.InstancedMesh(trunkGeo, bark, trees.length), tC = new THREE.InstancedMesh(crownGeo, leaf, trees.length);
-    const greens = [0x3f6f2e, 0x4c7f35, 0x2f5e2a, 0x5b8a3c, 0x46743a].map(h => new THREE.Color(h));
-    trees.forEach(([x, z, s, r], k) => {
-      dummy.position.set(x, 0.25, z); dummy.rotation.set(0, r * 6.28, 0); dummy.scale.set(s, s, s); dummy.updateMatrix();
-      tT.setMatrixAt(k, dummy.matrix); tC.setMatrixAt(k, dummy.matrix); tC.setColorAt(k, greens[k % greens.length]);
-    });
-    tT.castShadow = tC.castShadow = true; tC.receiveShadow = true; S.add(tT); S.add(tC);
-
-    // palms — trunk and crown share the same instance matrix
-    const pTrunk = new THREE.CylinderGeometry(0.15, 0.26, 9, 6); pTrunk.translate(0, 4.5, 0);
-    const leaves = [];
-    for (let k = 0; k < 9; k++) {
-      const g = new THREE.BoxGeometry(0.75, 0.06, 4.2); g.translate(0, 0, 2.1); g.rotateX(0.55 + (k % 2) * 0.2); g.rotateY(k / 9 * Math.PI * 2); g.translate(0, 9, 0);
-      leaves.push(g);
+    // Beach vegetation must not occupy the road linking London to the island.
+    for (const placements of [trees, palms]) for (let i = placements.length - 1; i >= 0; i--) {
+      if (Neighborhood.onBridge(placements[i][0], placements[i][1], -3)) placements.splice(i, 1);
     }
-    const nut = new THREE.IcosahedronGeometry(0.45, 0); nut.translate(0, 8.8, 0); leaves.push(nut);
-    const pCrown = mergeGeos(leaves);
-    const pT = new THREE.InstancedMesh(pTrunk, new THREE.MeshStandardMaterial({ color: 0x8a7158, roughness: 1 }), palms.length);
-    const pC = new THREE.InstancedMesh(pCrown, new THREE.MeshStandardMaterial({ color: 0x3f7a35, roughness: 0.85, side: THREE.DoubleSide }), palms.length);
-    palms.forEach(([x, z, s, r, y], k) => {
-      dummy.position.set(x, y === undefined ? 0.25 : y, z); dummy.rotation.set((r - 0.5) * 0.18, r * 6.28, (r - 0.5) * 0.22); dummy.scale.set(s, s, s); dummy.updateMatrix();
-      pT.setMatrixAt(k, dummy.matrix); pC.setMatrixAt(k, dummy.matrix);
-    });
-    pT.castShadow = pC.castShadow = true; S.add(pT); S.add(pC);
+    for (const [x, z, s] of trees) this.addCollider(x - 0.35 * s, x + 0.35 * s, z - 0.35 * s, z + 0.35 * s, 6, true);
+    for (const [x, z, s] of palms) this.addCollider(x - 0.3 * s, x + 0.3 * s, z - 0.3 * s, z + 0.3 * s, 9, true);
+
+    // Keep the procedural fallback only when either uploaded model cannot load.
+    if (!ImportedTrees.build(this, trees, palms)) {
+      // broadleaf trees
+      const trunkGeo = new THREE.CylinderGeometry(0.2, 0.32, 3.2, 6); trunkGeo.translate(0, 1.6, 0);
+      const crownGeo = new THREE.IcosahedronGeometry(2.6, 1); crownGeo.translate(0, 4.8, 0);
+      const bark = new THREE.MeshStandardMaterial({ color: 0x5a4433, roughness: 1 });
+      const leaf = new THREE.MeshStandardMaterial({ color: 0xffffff, roughness: 0.9, flatShading: true });
+      const tT = new THREE.InstancedMesh(trunkGeo, bark, trees.length), tC = new THREE.InstancedMesh(crownGeo, leaf, trees.length);
+      const greens = [0x3f6f2e, 0x4c7f35, 0x2f5e2a, 0x5b8a3c, 0x46743a].map(h => new THREE.Color(h));
+      trees.forEach(([x, z, s, r], k) => {
+        dummy.position.set(x, 0.25, z); dummy.rotation.set(0, r * 6.28, 0); dummy.scale.set(s, s, s); dummy.updateMatrix();
+        tT.setMatrixAt(k, dummy.matrix); tC.setMatrixAt(k, dummy.matrix); tC.setColorAt(k, greens[k % greens.length]);
+      });
+      tT.castShadow = tC.castShadow = true; tC.receiveShadow = true; S.add(tT); S.add(tC);
+
+      // palms — trunk and crown share the same instance matrix
+      const pTrunk = new THREE.CylinderGeometry(0.15, 0.26, 9, 6); pTrunk.translate(0, 4.5, 0);
+      const leaves = [];
+      for (let k = 0; k < 9; k++) {
+        const g = new THREE.BoxGeometry(0.75, 0.06, 4.2); g.translate(0, 0, 2.1); g.rotateX(0.55 + (k % 2) * 0.2); g.rotateY(k / 9 * Math.PI * 2); g.translate(0, 9, 0);
+        leaves.push(g);
+      }
+      const nut = new THREE.IcosahedronGeometry(0.45, 0); nut.translate(0, 8.8, 0); leaves.push(nut);
+      const pCrown = mergeGeos(leaves);
+      const pT = new THREE.InstancedMesh(pTrunk, new THREE.MeshStandardMaterial({ color: 0x8a7158, roughness: 1 }), palms.length);
+      const pC = new THREE.InstancedMesh(pCrown, new THREE.MeshStandardMaterial({ color: 0x3f7a35, roughness: 0.85, side: THREE.DoubleSide }), palms.length);
+      palms.forEach(([x, z, s, r, y], k) => {
+        dummy.position.set(x, y === undefined ? 0.25 : y, z); dummy.rotation.set((r - 0.5) * 0.18, r * 6.28, (r - 0.5) * 0.22); dummy.scale.set(s, s, s); dummy.updateMatrix();
+        pT.setMatrixAt(k, dummy.matrix); pC.setMatrixAt(k, dummy.matrix);
+      });
+      pT.castShadow = pC.castShadow = true; S.add(pT); S.add(pC);
+    }
 
     const pathMesh = new THREE.InstancedMesh(UNIT_PLANE, this.mats.walk, paths.length);
     paths.forEach(([x, z, w, d], k) => { dummy.position.set(x, 0.272, z); dummy.rotation.set(-Math.PI / 2, 0, 0); dummy.scale.set(w, d, 1); dummy.updateMatrix(); pathMesh.setMatrixAt(k, dummy.matrix); });
@@ -574,6 +607,8 @@ const World = {
     lamps.forEach(([x, z, a], k) => {
       dummy.position.set(x, 0.25, z); dummy.rotation.set(0, a, 0); dummy.scale.set(1, 1, 1); dummy.updateMatrix();
       pole.setMatrixAt(k, dummy.matrix); head.setMatrixAt(k, dummy.matrix);
+      // Collide with the ground-level pole, not the overhead arm or light halo.
+      this.addCollider(x - 0.13, x + 0.13, z - 0.13, z + 0.13, 7.85, true);
       dummy.position.set(x + Math.sin(a) * 2.6, 0.04, z + Math.cos(a) * 2.6); dummy.rotation.set(-Math.PI / 2, 0, 0); dummy.scale.set(11, 11, 1); dummy.updateMatrix();
       glow.setMatrixAt(k, dummy.matrix);
     });
@@ -598,6 +633,7 @@ const World = {
     poles.forEach(([x, z], k) => {
       dummy.rotation.set(0, 0, 0); dummy.scale.set(1, 1, 1);
       dummy.position.set(x, 0.25, z); dummy.updateMatrix(); sp.setMatrixAt(k, dummy.matrix);
+      this.addCollider(x - 0.12, x + 0.12, z - 0.12, z + 0.12, 6.275, true);
       dummy.position.set(x, 5.85, z + 0.23); dummy.updateMatrix(); lz.setMatrixAt(k * 2, dummy.matrix);
       dummy.position.set(x, 5.85, z - 0.23); dummy.updateMatrix(); lz.setMatrixAt(k * 2 + 1, dummy.matrix);
       dummy.position.set(x + 0.23, 5.85, z); dummy.updateMatrix(); lx.setMatrixAt(k * 2, dummy.matrix);
@@ -609,7 +645,7 @@ const World = {
   /* ---------------- minimap image ---------------- */
   makeMapImage() {
     const S = 1024, c = document.createElement('canvas'); c.width = c.height = S;
-    const g = c.getContext('2d'), E = CITY.HALF + 90, k = S / (2 * E), X = v => (v + E) * k;
+    const g = c.getContext('2d'), E = Math.max(CITY.HALF + 90, Neighborhood.bounds ? -Neighborhood.bounds.minZ + 45 : 0), k = S / (2 * E), X = v => (v + E) * k;
     this.mapExtent = E; this.mapScale = k; this.mapCanvas = c;
     g.fillStyle = '#0e2433'; g.fillRect(0, 0, S, S);
     const sand = CITY.HALF + 8 + 95;
@@ -620,6 +656,7 @@ const World = {
       g.fillStyle = b.type === 'park' ? '#22553a' : b.type === 'suburb' ? '#2b3d33' : '#2a303b';
       g.fillRect(X(b.x0), X(b.z0), CITY.BLOCK * k, CITY.BLOCK * k);
     }
+    Neighborhood.drawMap(g, X, k);
     g.fillStyle = '#3d4554';
     for (const c2 of this.colliders) if (!c2.small && c2.h > 1.5) g.fillRect(X(c2.minX), X(c2.minZ), (c2.maxX - c2.minX) * k, (c2.maxZ - c2.minZ) * k);
     g.fillStyle = '#1f5a78';
@@ -655,16 +692,16 @@ const World = {
     }
     sun.target.position.set(fx, 0, fz);
 
-    this.hemi.intensity = 0.2 + 0.55 * day + 0.18 * dusk;
-    this.hemi.color.copy(top).lerp(this._tmp.set(0xffffff), 0.35);
-    this.amb.intensity = 0.1 + night * 0.16;
+    this.hemi.intensity = 0.3 + 0.55 * day + 0.22 * dusk;
+    this.hemi.color.copy(top).lerp(this._tmp.set(0xffffff), 0.65);
+    this.amb.intensity = 0.3 + night * 0.12;
 
     const lamp = smooth(0.05, 0.45, night + dusk * 0.5);
     this.lampK = lamp;
     this.mats.lampHead.emissiveIntensity = lamp * 2.4;
     this.mats.glow.opacity = lamp * 0.55;
     this.lampGlow.visible = lamp > 0.01;
-    const win = 0.04 + night * 1.25 + dusk * 0.25;
+    const win = 0.05 + night * 1.7 + dusk * 0.6;
     this.mats.office.emissiveIntensity = win; this.mats.res.emissiveIntensity = win * 0.95; this.mats.house.emissiveIntensity = win * 0.85;
     for (const m of this.billboardMats) m.emissiveIntensity = 0.15 + lamp * 0.9;
     this.stars.material.opacity = night * 0.9;
@@ -679,6 +716,7 @@ const World = {
     this.mats.sigZ.emissive.setHex(col(this.signalState('z')));
     this.mats.sigX.emissive.setHex(col(this.signalState('x')));
 
+    ImportedTrees.update(dt, camera);
     if (camera) { this.sky.position.copy(camera.position); this.stars.position.copy(camera.position); }
   },
 
@@ -743,6 +781,10 @@ const World = {
     for (let k = 1; k < n; k++) { const t = k / n; if (this.pointBlocked(ax + dx * t, az + dz * t, 0, 1.5, true)) return false; }
     return true;
   },
+  groundHeight(x, z) {
+    if (Neighborhood.contains(x, z)) return Neighborhood.groundHeight(x, z);
+    return this.sidewalkAt(x, z) ? 0.25 : 0;
+  },
   sidewalkAt(x, z) {
     const { HALF, CELL, ROAD, BLOCK } = CITY;
     if (Math.abs(x) >= HALF || Math.abs(z) >= HALF) return false;
@@ -784,15 +826,17 @@ const World = {
   },
 
   zoneName(x, z) {
-    if (Math.abs(x) > CITY.HALF + 4 || Math.abs(z) > CITY.HALF + 4) return 'קו החוף';
+    if (Neighborhood.contains(x, z)) return 'London District';
+    if (Neighborhood.onBridge(x, z)) return 'London Bridge';
+    if (Math.abs(x) > CITY.HALF + 4 || Math.abs(z) > CITY.HALF + 4) return 'Coastline';
     const i = clamp(Math.floor((x + CITY.HALF) / CITY.CELL), 0, CITY.GRID - 1), j = clamp(Math.floor((z + CITY.HALF) / CITY.CELL), 0, CITY.GRID - 1);
     const b = this.blocks[i * CITY.GRID + j];
-    if (b.type === 'downtown') return 'דאונטאון';
-    if (b.type === 'park') return b.i === 6 && b.j === 6 ? 'כיכר העירייה' : 'פארק אוריליו';
+    if (b.type === 'downtown') return 'Downtown';
+    if (b.type === 'park') return b.i === 6 && b.j === 6 ? 'City Hall Plaza' : 'Aurelio Park';
     const a = Math.atan2(z, x), q = Math.abs(a) < Math.PI / 4 ? 'E' : Math.abs(a) > Math.PI * 0.75 ? 'W' : a > 0 ? 'S' : 'N';
     const names = {
-      midtown: { N: 'נורת׳ היל', S: 'רובע הנמל', E: 'מזרח העיר', W: 'רובע האמנים' },
-      suburb: { N: 'גבעות אוריליו', S: 'חוף הזהב', E: 'פאלם ויסטה', W: 'סאנסט פלאטס' },
+      midtown: { N: 'North Hill', S: 'Harbor District', E: 'East Side', W: 'Arts District' },
+      suburb: { N: 'Aurelio Hills', S: 'Gold Coast', E: 'Palm Vista', W: 'Sunset Flats' },
     };
     return names[b.type][q];
   },

@@ -236,7 +236,7 @@ const Wanted = {
     this.level = L; this.evade = 0;
     const P = Player.focus(); this.lastSeen.x = P.x; this.lastSeen.z = P.z;
     Sound.heat(); UI.heatPulse();
-    if (first) UI.toast('המשטרה בדרך', 'צא מטווח הראייה שלהם כדי לרדת מהרדאר.', 'heat');
+    if (first) UI.toast('Police incoming', 'Get out of their line of sight to drop off the radar.', 'heat');
     for (const v of Vehicles.all) {
       if (v.type === 'police' && v.ai instanceof TrafficDriver && Math.hypot(v.pos.x - P.x, v.pos.z - P.z) < 220) new PoliceDriver(v);
     }
@@ -244,7 +244,7 @@ const Wanted = {
   clear(silent) {
     const had = this.level > 0;
     this.level = 0; this.points = 0; this.evade = 0;
-    if (had && !silent) { UI.toast('התחמקת מהמשטרה', 'רמת המרדף אופסה.', 'ok'); Sound.pickup(); }
+    if (had && !silent) { UI.toast('You lost the cops', 'Wanted level cleared.', 'ok'); Sound.pickup(); }
   },
   update(dt) {
     if (this.level === 0) return;
@@ -317,7 +317,7 @@ const Heli = {
       const a = Math.random() * Math.PI * 2;
       this.pos.set(P.x + Math.cos(a) * 320, 85, P.z + Math.sin(a) * 320); this.vel.set(0, 0, 0);
       this.active = true; this.leaveT = 0; this.mesh.visible = true;
-      UI.toast('מסוק משטרה באוויר', 'הזרקור שלו מסמן אותך לשוטרים.', 'heat');
+      UI.toast('Police chopper overhead', 'Its spotlight marks you for the cops.', 'heat');
     }
     if (!this.active) return;
     let tx, tz, ty;

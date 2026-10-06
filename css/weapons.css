@@ -1,0 +1,10 @@
+#weapon-hud { position: absolute; right: 24px; bottom: 30px; padding: 12px 16px; border: 1px solid rgba(255,255,255,.2); border-radius: 8px; background: rgba(8,14,21,.85); color: #fff; text-align: right; pointer-events: auto; }
+#weapon-hud[hidden], #weapon-crosshair[hidden] { display: none; }
+#weapon-hud strong { display: block; font-size: 18px; }
+#weapon-hud small { display: block; margin-top: 6px; color: #cdd6df; }
+#weapon-slots { display: flex; gap: 6px; margin-top: 8px; }
+#weapon-slots button { padding: 6px 10px; border: 1px solid #718096; border-radius: 4px; background: #14202e; color: #fff; cursor: pointer; font: inherit; }
+#weapon-slots button[aria-pressed="true"] { background: #385443; border-color: #7be38f; }
+#hud:has(#weapon-crosshair:not([hidden])) #lock-hint { top: 22%; }
+#weapon-crosshair { position: absolute; left: 50%; top: 50%; transform: translate(-50%, -50%); font: 24px monospace; color: #fff; text-shadow: 0 1px 3px #000; pointer-events: none; }
+@media (max-width: 600px) { #weapon-hud { right: 10px; bottom: 20px; padding: 8px; font-size: 11px; } #weapon-hud strong { font-size: 14px; } }

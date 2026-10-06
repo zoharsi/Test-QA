@@ -49,26 +49,32 @@ const Game = {
     try {
       r = this.renderer = new THREE.WebGLRenderer({ canvas, antialias: true, powerPreference: 'high-performance' });
     } catch (e) {
-      UI.loading(0, 'הדפדפן הזה לא תומך ב־WebGL. נסה Chrome, Edge או Firefox עדכניים.');
+      UI.loading(0, 'This browser does not support WebGL. Try a recent Chrome, Edge or Firefox.');
       return;
     }
     r.setSize(innerWidth, innerHeight);
     r.shadowMap.enabled = true; r.shadowMap.type = THREE.PCFSoftShadowMap;
     r.toneMapping = THREE.ACESFilmicToneMapping; r.toneMappingExposure = 1.15;
+    r.outputEncoding = THREE.sRGBEncoding;
     this.scene = new THREE.Scene();
     this.camera = new THREE.PerspectiveCamera(55, innerWidth / innerHeight, 0.5, 4200);
     this.camera.position.set(260, 120, 160);
     Input.init(canvas);
 
-    await World.build(this.scene, (p, s) => UI.loading(p, s));
+    await Assets.load(p => UI.loading(p * 0.18, 'טוען מודלים'));
+    await World.build(this.scene, (p, s) => UI.loading(0.18 + p * 0.82, s));
+    UI.loading(0.83, 'Capturing daylight aerial map'); await wait(30);
+    AerialMap.build(r, this.scene);
     FX.init(this.scene);
+    Weapons.init();
     Heli.build();
-    Player.init();
+    UI.loading(0.84, 'Loading player model');
+    await Player.init();
     Player.pos.set(this.START.x, 0.25, this.START.z); Player.facing = -Math.PI / 2;
     const starter = new Vehicle('sports', -73.45, 28, Math.PI, 0xff3b1f);
     starter.parked = true; starter.input.handbrake = true; this.lastCar = starter;
 
-    UI.loading(0.88, 'מזניק תנועה ותושבים'); await wait(30);
+    UI.loading(0.88, 'Spawning traffic and pedestrians'); await wait(30);
     const Q = QUALITY[this.settings.quality] || QUALITY.high, F = Player.focus();
     Traffic.target = Q.traffic; Traffic.parkedTarget = Math.round(Q.traffic * 0.4);
     for (let k = 0, n = 0; k < Q.traffic * 6 && n < Q.traffic; k++) if (Traffic.spawn(F.x, F.z, true)) n++;
@@ -78,9 +84,9 @@ const Game = {
     this.wpBeacon = makeBeacon(0xb47cff, 60, 2); this.wpBeacon.visible = false;
     this.applySettings();
 
-    UI.loading(0.96, 'מחמם את המנוע'); await wait(30);
+    UI.loading(0.96, 'Warming up the engine'); await wait(30);
     try { r.compile(this.scene, this.camera); } catch (e) { /* optional warm-up */ }
-    UI.loading(1, 'מוכן'); await wait(300);
+    UI.loading(1, 'Ready'); await wait(300);
 
     addEventListener('resize', () => this.resize());
     document.addEventListener('pointerlockchange', () => {
@@ -107,6 +113,7 @@ const Game = {
     else if (a === 'quit') { UI.hide('pause'); this.save(); this.toMenu(); }
   },
   toMenu() {
+    Navigation.cancel(true);
     this.state = 'menu';
     UI.hide('hud'); UI.hide('pause'); UI.closeMap(); UI.show('menu');
     this.camLambda = 2; this.muteLoops();
@@ -115,10 +122,10 @@ const Game = {
     Sound.init(); Sound.applyVolume();
     if (!this.started) {
       this.started = true;
-      UI.el['play-label'].textContent = 'המשך לשחק';
+      UI.el['play-label'].textContent = 'Continue';
       setTimeout(() => {
-        UI.toast('ברוך הבא לסן אוריליו', 'מכונית ספורט אדומה חונה ממש לידך. גש אליה ולחץ F.', 'mission');
-        UI.toast('שלוש משימות פתוחות', 'חפש עמודי אור צבעוניים במפה (M).', 'info');
+        UI.toast('Welcome to San Aurelio', 'A red sports car is parked right next to you. Walk up and press F.', 'mission');
+        UI.toast('Three missions available', 'Look for colored light beams on the map (M).', 'info');
       }, 900);
     }
     UI.hide('menu'); UI.show('hud'); UI.closePanel();
@@ -154,6 +161,9 @@ const Game = {
   onKey(code) {
     if (UI.isPanelOpen()) { if (code === 'Escape') UI.closePanel(); return; }
     if (this.state === 'playing') {
+      if (Navigation.drive && ['KeyW', 'KeyA', 'KeyS', 'KeyD', 'ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight', 'Space'].includes(code)) {
+        Navigation.cancel(true); UI.toast('Automatic driving cancelled', 'You are driving manually.', 'info');
+      }
       if (code === 'KeyM') this.openMap();
       else if (code === 'KeyP' || (code === 'Escape' && !document.pointerLockElement)) this.pause();
     } else if (this.state === 'paused') {
@@ -169,17 +179,20 @@ const Game = {
   /* ---------------- loop ---------------- */
   loop() {
     requestAnimationFrame(() => this.loop());
-    const rdt = Math.min(this.clock.getDelta(), 0.05);
+    const frameTime = this.clock.getDelta();
+    Vehicles.sampleFrame(frameTime);
+    const rdt = Math.min(frameTime, 0.05);
     if (this.state === 'playing' || this.state === 'menu') {
       if (this.slowT > 0) { this.slowT -= rdt; this.slow = damp(this.slow, 0.28, 6, rdt); }
       else this.slow = damp(this.slow, 1, 4, rdt);
-      this.update(rdt * this.slow, rdt);
+      this.update(rdt * this.slow, rdt, frameTime * this.slow);
     }
-    this.renderer.render(this.scene, this.camera);
+    if (this.composer) this.composer.render(); else this.renderer.render(this.scene, this.camera);
+    Weapons.render(this.renderer);
     Input.endFrame();
   },
 
-  update(dt, rdt) {
+  update(dt, rdt, weaponDt = dt) {
     const playing = this.state === 'playing';
     this.prompt = null;
     if (playing) this.handleInput();
@@ -188,6 +201,7 @@ const Game = {
     if (playing && Player.mode === 'foot' && !Player.dead) Player.updateFoot(dt, this.footInput(), this.cam.yaw);
     else if (Player.mode === 'foot') Player.ch.animate(dt, 0);
 
+    if (playing) Navigation.update(dt);
     Traffic.update(dt, F.x, F.z);
     for (const v of Vehicles.all) v.update(dt);
     Vehicles.collide();
@@ -212,7 +226,9 @@ const Game = {
     }
     Heli.update(dt);
     FX.update(dt);
+    Weapons.update(weaponDt);
     this.updateCamera(rdt);
+    Player.ch.root.visible = Player.mode === 'foot' && !Weapons.firstPerson;
     this.updateAudio();
     if (playing) UI.update(rdt);
   },
@@ -230,10 +246,15 @@ const Game = {
     if (Player.dead) return;
     if (Player.mode === 'car') {
       const v = Player.vehicle, inp = v.input;
+      if (Navigation.drive && I.down('KeyW', 'KeyA', 'KeyS', 'KeyD', 'ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight', 'Space')) {
+        Navigation.cancel(true); UI.toast('Automatic driving cancelled', 'You are driving manually.', 'info');
+      }
+      if (!Navigation.drive) {
       inp.throttle = I.down('KeyW', 'ArrowUp') ? 1 : 0;
       inp.brake = I.down('KeyS', 'ArrowDown') ? 1 : 0;
       inp.steer = (I.down('KeyA', 'ArrowLeft') ? 1 : 0) - (I.down('KeyD', 'ArrowRight') ? 1 : 0);
       inp.handbrake = I.down('Space');
+      }
       const horn = I.down('KeyH');
       Sound.setHorn(horn);
       if (horn && Math.random() < 0.08) Peds.scareAround(v.pos.x, v.pos.z, 14);
@@ -244,7 +265,11 @@ const Game = {
       if (I.hit('KeyF') || I.hit('Enter')) this.exitVehicle();
     } else {
       if (I.hit('KeyF') || I.hit('Enter')) this.tryEnter();
-      if (I.clicked) Player.punch();
+      if (I.hit('Digit1')) Weapons.equip(0);
+      if (I.hit('Digit2')) Weapons.equip(1);
+      if (I.hit('Digit0')) Weapons.equip(-1);
+      if (I.hit('KeyR')) Weapons.reload();
+      if (I.clicked) { if (Weapons.firstPerson) Weapons.fire(); else Player.punch(); }
     }
   },
   footInput() {
@@ -267,7 +292,7 @@ const Game = {
   interactions() {
     if (Player.mode !== 'foot' || Player.dead || this.prompt) return;
     const v = this.nearestCar();
-    if (v) this.prompt = `<kbd>F</kbd> ${v.driver ? 'השתלט על' : 'היכנס ל־'}${ltr(v.spec.name)}`;
+    if (v) this.prompt = `<kbd>F</kbd> ${v.driver ? 'Hijack ' : 'Enter '}${ltr(v.spec.name)}`;
   },
   tryEnter() {
     const v = this.nearestCar();
@@ -286,6 +311,7 @@ const Game = {
     if (Radio.current) setTimeout(() => { if (Player.vehicle === v) UI.radio(Radio.current); }, 700);
   },
   exitVehicle() {
+    Navigation.cancel(true);
     const v = Player.exit();
     if (!v) return;
     this.cam.yaw = v.heading; this.cam.pitch = 0.16;
@@ -414,7 +440,7 @@ const Game = {
     this.canvas.classList.add('fx-dead');
     if (Player.vehicle) { const i = Player.vehicle.input; i.throttle = i.brake = i.steer = 0; }
     Missions.abort();
-    UI.banner('פונית לבית החולים', 'חשבון האשפוז: ' + ltr('−' + fmtMoney(250)), 'dead', 3600);
+    UI.banner('WASTED', 'Hospital bill: ' + ltr('−' + fmtMoney(250)), 'dead', 3600);
     Sound.wasted();
     setTimeout(() => this.respawn('hospital', 250), 3800);
   },
@@ -425,7 +451,7 @@ const Game = {
     this.canvas.classList.add('fx-busted');
     if (Player.vehicle) { const i = Player.vehicle.input; i.throttle = i.brake = i.steer = 0; i.handbrake = true; }
     Missions.abort();
-    UI.banner('נעצרת', 'הערבות עלתה ' + ltr(fmtMoney(cost)), 'busted', 3400);
+    UI.banner('BUSTED', 'Bail cost ' + ltr(fmtMoney(cost)), 'busted', 3400);
     Sound.failed();
     setTimeout(() => this.respawn('police', cost), 3600);
   },
@@ -450,12 +476,21 @@ const Game = {
   /* ---------------- navigation ---------------- */
   updateRoute() {
     this.routeT = 0.5;
+    if (Navigation.drive) return;
     const m = Missions.targetPos(), t = m || this.waypoint;
     if (!t) { this.route = []; return; }
     const P = Player.focus();
-    if (!m && Math.hypot(P.x - t.x, P.z - t.z) < 14) { this.waypoint = null; this.route = []; UI.toast('הגעת ליעד', 'נקודת הציון הוסרה.', 'ok'); return; }
-    const nodes = World.path(World.nearestNode(P.x, P.z), World.nearestNode(t.x, t.z));
-    this.route = [[P.x, P.z], ...nodes.map(n => [nodeCoord(n[0]), nodeCoord(n[1])]), [t.x, t.z]];
+    if (!m && Math.hypot(P.x - t.x, P.z - t.z) < 14) { this.waypoint = null; this.route = []; UI.toast('Destination reached', 'Waypoint removed.', 'ok'); return; }
+    const inLondon = p => Neighborhood.contains(p.x, p.z) || Neighborhood.onBridge(p.x, p.z);
+    const fromLondon = inLondon(P), toLondon = inLondon(t);
+    if (fromLondon && toLondon) { this.route = [[P.x, P.z], [t.x, t.z]]; return; }
+    const bridge = Neighborhood.bridge;
+    const junction = bridge ? { x: bridge.x, z: -CITY.HALF } : null;
+    const a = fromLondon ? junction : P, b = toLondon ? junction : t;
+    const nodes = World.path(World.nearestNode(a.x, a.z), World.nearestNode(b.x, b.z));
+    const grid = nodes.map(n => [nodeCoord(n[0]), nodeCoord(n[1])]);
+    this.route = [[P.x, P.z], ...(fromLondon ? [[bridge.x, bridge.minZ], [junction.x, junction.z]] : []),
+      ...grid, ...(toLondon ? [[junction.x, junction.z], [bridge.x, bridge.minZ]] : []), [t.x, t.z]];
   },
 
   /* ---------------- camera ---------------- */
@@ -487,6 +522,12 @@ const Game = {
       }
       fov = 60 + Math.min(sp, 55) * 0.3;
       ox = v.pos.x; oz = v.pos.z;
+    } else if (Weapons.firstPerson) {
+      const p = Player.pos, cp = Math.cos(C.pitch), sp = Math.sin(C.pitch);
+      des.set(p.x, p.y + 1.6, p.z);
+      look.copy(des).add(new THREE.Vector3(Math.sin(C.yaw) * cp, -sp, Math.cos(C.yaw) * cp));
+      cam.position.copy(des); this._lookCur.copy(look);
+      collide = false; k = 90;
     } else {
       const p = Player.pos, fx = Math.sin(C.yaw), fz = Math.cos(C.yaw), rx = -fz, rz = fx;
       const tx = p.x + rx * 0.55, ty = p.y + 1.6, tz = p.z + rz * 0.55, dist = 4.4, cp = Math.cos(C.pitch), sp = Math.sin(C.pitch);
@@ -494,9 +535,12 @@ const Game = {
       look.set(tx + fx * 1.5, ty, tz + fz * 1.5);
       ox = p.x; oz = p.z;
     }
+    if (this.state !== 'menu' && Player.mode === 'car' && Player.vehicle) {
+      des.y += Player.vehicle.pos.y; look.y += Player.vehicle.pos.y;
+    }
     if (k === undefined) { this.camLambda = Math.min(26, this.camLambda + dt * 9); k = this.camLambda; }
     if (collide) {
-      const oy = 1.7;
+      const oy = 1.7 + World.groundHeight(ox, oz);
       for (let s = 1; s <= 12; s++) {
         const u = s / 12, x = lerp(ox, des.x, u), y = lerp(oy, des.y, u), z = lerp(oz, des.z, u);
         if (World.pointBlocked(x, z, 0.4, y, true)) {
@@ -545,6 +589,8 @@ const Game = {
     const s = this.settings, Q = QUALITY[s.quality] || QUALITY.high, sun = World.sun;
     this.renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, Q.pr));
     this.renderer.setSize(innerWidth, innerHeight);
+    if (s.quality !== 'low') this.setupBloom();
+    if (this.composer) { this.composer.setPixelRatio(this.renderer.getPixelRatio()); this.composer.setSize(innerWidth, innerHeight); this.bloom.enabled = s.quality !== 'low'; }
     sun.castShadow = Q.shadows > 0;
     if (Q.shadows && sun.shadow.mapSize.x !== Q.shadows) {
       sun.shadow.mapSize.set(Q.shadows, Q.shadows);
@@ -556,8 +602,18 @@ const Game = {
     Sound.vol.sfx = s.sfx; Sound.vol.music = s.music; Sound.applyVolume();
     UI.el.fps.classList.toggle('on', !!s.fps);
   },
+  setupBloom() {
+    if (!THREE.EffectComposer || this.composer) return;
+    const c = this.composer = new THREE.EffectComposer(this.renderer);
+    c.addPass(new THREE.RenderPass(this.scene, this.camera));
+    this.bloom = new THREE.UnrealBloomPass(new THREE.Vector2(innerWidth, innerHeight), 0.7, 0.5, 0.82);
+    c.addPass(this.bloom);
+    // GLB color textures are decoded to linear; convert once at final output.
+    c.addPass(new THREE.ShaderPass(THREE.GammaCorrectionShader));
+  },
   resize() {
     this.renderer.setSize(innerWidth, innerHeight);
+    if (this.composer) this.composer.setSize(innerWidth, innerHeight);
     this.camera.aspect = innerWidth / innerHeight; this.camera.updateProjectionMatrix();
     if (this.state === 'map') UI.drawBigMap();
   },
@@ -576,6 +632,6 @@ const Game = {
 };
 
 window.addEventListener('error', e => {
-  if (Game.state === 'loading') UI.loading(0, 'שגיאה בטעינה: ' + (e.message || 'לא ידועה') + '. רענן את הדף.');
+  if (Game.state === 'loading') UI.loading(0, 'Loading error: ' + (e.message || 'unknown') + '. Refresh the page.');
 });
 Game.init();

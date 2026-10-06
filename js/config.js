@@ -55,7 +55,7 @@ const UNIT_PLANE = new THREE.PlaneGeometry(1, 1);
 const VEHICLES = {
   sedan:  { name: 'Vireo LX',     maxSpeed: 46, accel: 7.5,    brake: 30, grip: 7.5, steer: 0.62, wb: 2.7, len: 4.6, wid: 1.95, hgt: 1.42, cab: 0.5,  cabZ: -0.15, mass: 1.0,
             colors: [0x8a1c1c, 0x1d3557, 0xdedede, 0x2b2b2b, 0x5c6b73, 0x7a5c3a, 0x23395b, 0x9aa5ad] },
-  sports: { name: 'Strata GT',    maxSpeed: 66, accel: 11.5,   brake: 36, grip: 8.6, steer: 0.58, wb: 2.6, len: 4.45, wid: 2.0, hgt: 1.18, cab: 0.4,  cabZ: -0.32, mass: 0.9,
+  sports: { name: 'Strata GT',    maxSpeed: 72, accel: 12.5,   brake: 36, grip: 9, steer: 0.56, wb: 2.6, len: 4.45, wid: 2.0, hgt: 1.18, cab: 0.4,  cabZ: -0.32, mass: 0.9,
             colors: [0xff3b1f, 0xffb800, 0x0094ff, 0x121212, 0xf2f2f2, 0x6cff3a, 0xb31dff] },
   suv:    { name: 'Kodiak XR',    maxSpeed: 42, accel: 6.5,  brake: 26, grip: 6.6, steer: 0.6,  wb: 2.9, len: 4.9, wid: 2.1,  hgt: 1.85, cab: 0.62, cabZ: -0.18, mass: 1.4,
             colors: [0x111111, 0x3b3f45, 0xe8e8e8, 0x2e4a3a, 0x5a3825, 0x1f2f4a] },
@@ -66,7 +66,7 @@ const VEHICLES = {
   police: { name: 'Interceptor',  maxSpeed: 60, accel: 10.5, brake: 34, grip: 8.2, steer: 0.6,  wb: 2.8, len: 4.85, wid: 2.0, hgt: 1.45, cab: 0.5,  cabZ: -0.15, mass: 1.25, police: true,
             colors: [0xf4f4f4] },
 };
-const TRAFFIC_MIX = ['sedan', 'sedan', 'sedan', 'sedan', 'suv', 'suv', 'taxi', 'van', 'sports'];
+const TRAFFIC_MIX = ['sports', 'sports', 'sports', 'sedan', 'suv', 'taxi'];
 
 const QUALITY = {
   low:    { pr: 1,   shadows: 0,    fog: 430, traffic: 20, peds: 22 },
@@ -75,11 +75,11 @@ const QUALITY = {
 };
 
 const LOAD_TIPS = [
-  'בלם יד (רווח) בזמן פנייה = החלקה מבוקרת.',
-  'מחוץ לטווח הראייה של השוטרים, רמת המרדף מתחילה לרדת.',
-  'מזומנים זהובים מפוזרים על המדרכות. שווה לעצור.',
-  'Q מחליף תחנת רדיו. יש שלוש, ואחת מהן רק לשעות הקטנות.',
-  'M פותח מפה. לחיצה עליה מסמנת יעד ומדליקה ניווט.',
-  'רכב שעולה באש מתפוצץ אחרי כמה שניות. צא מהר.',
-  'רמזורים עובדים באמת — וגם הנהגים האחרים מצייתים להם.',
+  'Handbrake (Space) while turning = controlled drift.',
+  'Out of the cops\' sight, your wanted level starts to drop.',
+  'Golden cash is scattered on the sidewalks. Worth a stop.',
+  'Q switches radio stations. There are three, and one is for the small hours.',
+  'M opens the map. Click it to set a waypoint and start GPS.',
+  'A burning car explodes after a few seconds. Get out fast.',
+  'Traffic lights really work — and other drivers obey them.',
 ];

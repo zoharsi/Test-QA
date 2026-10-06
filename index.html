@@ -1,19 +1,20 @@
 <!DOCTYPE html>
-<html lang="he" dir="rtl">
+<html lang="en" dir="ltr">
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-  <title>San Aurelio — משחק עולם פתוח בדפדפן</title>
-  <meta name="description" content="משחק עולם פתוח בתלת־ממד שרץ בדפדפן: עיר חוף שלמה, נהיגה, מרדפים משטרתיים, משימות ורדיו.">
+  <title>San Aurelio — Open-World Browser Game</title>
+  <meta name="description" content="A 3D open-world game in your browser: a whole coastal city, driving, police chases, missions and radio.">
   <meta name="theme-color" content="#0d1117">
   <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🌆</text></svg>">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Heebo:wght@400;500;700;800;900&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="css/style.css">
+  <link rel="stylesheet" href="css/weapons.css">
 </head>
 <body>
-  <canvas id="game" aria-label="עולם המשחק"></canvas>
+  <canvas id="game" aria-label="Game world"></canvas>
   <div id="vignette" aria-hidden="true"></div>
 
   <!-- loading -->
@@ -24,7 +25,7 @@
         <span class="logo-main">AURELIO</span>
       </div>
       <div class="load-bar"><i id="load-fill"></i></div>
-      <p class="load-status" id="load-status">מאתחל…</p>
+      <p class="load-status" id="load-status">Initializing…</p>
       <p class="load-tip" id="load-tip"></p>
     </div>
   </section>
@@ -37,34 +38,34 @@
         <span class="logo-san">SAN</span>
         <span class="logo-main">AURELIO</span>
       </div>
-      <p class="tagline">עיר חוף אחת. אלף דרכים לברוח ממנה.</p>
+      <p class="tagline">One coastal city. A thousand ways to escape it.</p>
     </header>
 
-    <nav class="gantry" aria-label="תפריט ראשי">
+    <nav class="gantry" aria-label="Main menu">
       <div class="beam" aria-hidden="true"></div>
       <div class="signs">
         <button class="sign primary" data-act="play">
-          <span class="exit">יציאה 1</span>
-          <span class="sign-main" id="play-label">התחל לשחק</span>
-          <span class="sign-sub">העיר כבר ערה</span>
+          <span class="exit">EXIT 1</span>
+          <span class="sign-main" id="play-label">Start Game</span>
+          <span class="sign-sub">The city never sleeps</span>
           <span class="arrow" aria-hidden="true"></span>
         </button>
         <button class="sign" data-act="controls">
-          <span class="exit">יציאה 2</span>
-          <span class="sign-main">שליטה</span>
-          <span class="sign-sub">מקלדת ועכבר</span>
+          <span class="exit">EXIT 2</span>
+          <span class="sign-main">Controls</span>
+          <span class="sign-sub">Keyboard & mouse</span>
           <span class="arrow" aria-hidden="true"></span>
         </button>
         <button class="sign" data-act="settings">
-          <span class="exit">יציאה 3</span>
-          <span class="sign-main">הגדרות</span>
-          <span class="sign-sub">גרפיקה וצליל</span>
+          <span class="exit">EXIT 3</span>
+          <span class="sign-main">Settings</span>
+          <span class="sign-sub">Graphics & sound</span>
           <span class="arrow" aria-hidden="true"></span>
         </button>
         <button class="sign" data-act="about">
-          <span class="exit">יציאה 4</span>
-          <span class="sign-main">על המשחק</span>
-          <span class="sign-sub">איך זה בנוי</span>
+          <span class="exit">EXIT 4</span>
+          <span class="sign-main">About</span>
+          <span class="sign-sub">How it's built</span>
           <span class="arrow" aria-hidden="true"></span>
         </button>
       </div>
@@ -72,7 +73,7 @@
     </nav>
 
     <footer class="menu-foot">
-      <span>מומלץ לשחק במחשב עם מקלדת ועכבר, עם אוזניות.</span>
+      <span>Best played on desktop with keyboard, mouse and headphones.</span>
       <span dir="ltr">v1.0 · Three.js</span>
     </footer>
   </section>
@@ -82,7 +83,7 @@
     <div class="modal-card">
       <header>
         <h2 id="panel-title"></h2>
-        <button class="x" data-act="close-panel" aria-label="סגור">✕</button>
+        <button class="x" data-act="close-panel" aria-label="Close">✕</button>
       </header>
       <div id="panel-body"></div>
     </div>
@@ -94,11 +95,11 @@
       <div id="clock" dir="ltr">18:20</div>
       <div id="money" dir="ltr">$0</div>
       <div id="money-delta" dir="ltr"></div>
-      <div id="heat" aria-label="רמת מרדף"></div>
+      <div id="heat" aria-label="Wanted level"></div>
     </div>
 
     <div class="hud-bl">
-      <div class="mini-wrap"><canvas id="minimap" aria-label="מפה"></canvas></div>
+      <div class="mini-wrap"><canvas id="minimap" aria-label="Map"></canvas></div>
       <div id="zone"></div>
     </div>
 
@@ -109,7 +110,7 @@
       </svg>
       <div class="sp-read">
         <span id="sp-num">0</span>
-        <span class="sp-unit">קמ״ש</span>
+        <span class="sp-unit">km/h</span>
       </div>
       <span id="sp-gear">N</span>
       <div class="sp-hp"><i id="sp-hp"></i></div>
@@ -122,10 +123,20 @@
     <div id="mtimer" dir="ltr"></div>
     <div id="objective" aria-live="polite"></div>
     <div id="prompt"></div>
-    <div id="bust"><i></i><span>השוטרים עוצרים אותך — זוז!</span></div>
-    <div id="lock-hint">לחץ על המסך כדי לשלוט במצלמה בעכבר</div>
+    <div id="bust"><i></i><span>The cops are busting you — move!</span></div>
+    <div id="lock-hint">Click the screen to control the camera with the mouse</div>
     <div id="fps" dir="ltr"></div>
     <div id="hurt" aria-hidden="true"></div>
+    <div id="weapon-crosshair" hidden aria-hidden="true">+</div>
+    <div id="weapon-hud" hidden>
+      <strong id="weapon-status" aria-live="polite"></strong>
+      <div id="weapon-slots" role="group" aria-label="Weapon selection">
+        <button type="button" data-weapon="0" aria-pressed="false">1 · M4 v1</button>
+        <button type="button" data-weapon="1" aria-pressed="false">2 · M4 v11</button>
+        <button type="button" data-weapon="-1" aria-pressed="true">0 · Unarmed</button>
+      </div>
+      <small>Click: fire · R: reload · 1 / 2: equip · 0: unarmed</small>
+    </div>
   </section>
 
   <!-- mission / death banner -->
@@ -137,12 +148,12 @@
   <!-- pause -->
   <section id="pause" class="screen">
     <div class="pause-card">
-      <h2>המשחק בהפסקה</h2>
-      <button class="pbtn primary" data-act="resume">חזרה לרחוב</button>
-      <button class="pbtn" data-act="map">מפת העיר</button>
-      <button class="pbtn" data-act="controls">שליטה</button>
-      <button class="pbtn" data-act="settings">הגדרות</button>
-      <button class="pbtn ghost" data-act="quit">לתפריט הראשי</button>
+      <h2>Paused</h2>
+      <button class="pbtn primary" data-act="resume">Resume</button>
+      <button class="pbtn" data-act="map">City Map</button>
+      <button class="pbtn" data-act="controls">Controls</button>
+      <button class="pbtn" data-act="settings">Settings</button>
+      <button class="pbtn ghost" data-act="quit">Main Menu</button>
     </div>
   </section>
 
@@ -150,25 +161,43 @@
   <section id="bigmap" class="screen">
     <canvas id="bigmap-c"></canvas>
     <div class="map-legend">
-      <span><i style="background:#ffc247"></i>משימה</span>
-      <span><i style="background:#b47cff"></i>נקודת ציון ומסלול</span>
-      <span><i style="background:#ff3b4a"></i>משטרה</span>
+      <span><i style="background:#ffc247"></i>Mission</span>
+      <span><i style="background:#b47cff"></i>Waypoint & route</span>
+      <span><i style="background:#ff3b4a"></i>Police</span>
     </div>
-    <p class="map-hint">קליק מסמן יעד · קליק ימני מוחק · M או Esc לסגירה</p>
+    <p class="map-hint">Click: teleport on foot / auto-drive in car · Right-click: cancel · M or Esc: close</p>
   </section>
 
   <div id="fade" aria-hidden="true"></div>
 
   <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/loaders/GLTFLoader.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/utils/SkeletonUtils.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/shaders/CopyShader.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/shaders/GammaCorrectionShader.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/shaders/LuminosityHighPassShader.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/postprocessing/EffectComposer.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/postprocessing/RenderPass.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/postprocessing/ShaderPass.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/postprocessing/UnrealBloomPass.js"></script>
   <script src="js/config.js"></script>
+  <script src="js/assets.js"></script>
   <script src="js/audio.js"></script>
-  <script src="js/world.js"></script>
-  <script src="js/vehicle.js"></script>
+  <script src="js/london-foundation.js"></script>
+  <script src="js/neighborhood.js"></script>
+  <script src="js/trees.js?v=20261006-tree-roots"></script>
+  <script src="js/world.js?v=20261006-street-collisions"></script>
+  <script src="js/vehicle.js?v=20261006-lapd"></script>
+  <script src="js/player-model.js"></script>
+  <script src="js/character-motion.js"></script>
   <script src="js/characters.js"></script>
   <script src="js/ai.js"></script>
   <script src="js/fx.js"></script>
   <script src="js/missions.js"></script>
+  <script src="js/aerial-map.js"></script>
   <script src="js/ui.js"></script>
-  <script src="js/main.js"></script>
+  <script src="js/weapons.js"></script>
+  <script src="js/navigation.js"></script>
+  <script src="js/main.js?v=20261006-srgb"></script>
 </body>
 </html>
