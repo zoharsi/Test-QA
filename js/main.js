@@ -63,7 +63,8 @@ const Game = {
     await World.build(this.scene, (p, s) => UI.loading(p, s));
     FX.init(this.scene);
     Heli.build();
-    Player.init();
+    UI.loading(0.84, 'Loading player model');
+    await Player.init();
     Player.pos.set(this.START.x, 0.25, this.START.z); Player.facing = -Math.PI / 2;
     const starter = new Vehicle('sports', -73.45, 28, Math.PI, 0xff3b1f);
     starter.parked = true; starter.input.handbrake = true; this.lastCar = starter;

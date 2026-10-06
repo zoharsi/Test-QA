@@ -55,9 +55,15 @@ const Player = {
   ch: null, pos: null, vel: new THREE.Vector2(), facing: 0, vy: 0, y: 0.25,
   health: 100, mode: 'foot', vehicle: null, dead: false, invuln: 0,
 
-  init() {
+  async init() {
     this.ch = new Character({ skin: 0xd6a07c, shirt: 0xeeeeea, pants: 0x27364f, hair: 0x15110e, shadow: true });
     this.pos = this.ch.root.position;
+    try {
+      await loadPlayerModel(this.ch);
+    } catch (error) {
+      console.warn('Player model could not load; using the original character.', error);
+      UI.toast('Character model unavailable', 'Using the original character. Refresh to retry.', 'info');
+    }
   },
   focus() { return this.mode === 'car' && this.vehicle ? this.vehicle.pos : this.pos; },
   focusVel() { return this.mode === 'car' && this.vehicle ? this.vehicle.vel : this.vel; },
