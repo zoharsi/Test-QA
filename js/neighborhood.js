@@ -84,10 +84,16 @@ const Neighborhood = {
       rail.position.set(x, 0.55, deck.position.z); rail.scale.set(0.6, 1.1, length); world.scene.add(rail);
       world.addCollider(x - 0.3, x + 0.3, bridge.minZ, bridge.maxZ, 1.1);
     }
+    this.foundation = buildLondonFoundation(world, this.streets);
+    this.buildingFoundations = new GeoBuilder();
     // Separate buildings are baked into six meshes. Weld shared positions and
     // bound connected pieces, rather than blocking each entire city-wide mesh.
     this.colliderCount = 0;
     for (const node of buildings) this.addBuildingColliders(world, node);
+    const foundations = new THREE.Mesh(this.buildingFoundations.build(), this.foundation.material);
+    foundations.name = 'London building foundations';
+    foundations.castShadow = foundations.receiveShadow = true; world.scene.add(foundations);
+    this.buildingFoundations = null;
   },
 
   addBuildingColliders(world, node) {
@@ -115,6 +121,11 @@ const Neighborhood = {
     for (const box of boxes.values()) {
       if (box.max.y - box.min.y < 2 || box.min.y > 12) continue;
       world.addCollider(box.min.x, box.max.x, box.min.z, box.max.z, box.max.y);
+      if (box.min.y > 0.15) {
+        this.buildingFoundations.box({ x: (box.min.x + box.max.x) / 2, z: (box.min.z + box.max.z) / 2,
+          y: -0.05, w: box.max.x - box.min.x, d: box.max.z - box.min.z,
+          h: box.min.y + 0.05, col: new THREE.Color(0x9c9a94) });
+      }
       this.colliderCount++;
     }
   },
