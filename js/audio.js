@@ -139,13 +139,13 @@ const Sound = {
    ========================================================= */
 const Radio = {
   stations: [
-    { name: 'AURELIO FM', genre: 'סינת׳וויב לנסיעות לילה', bpm: 104, bassOct: -24,
+    { name: 'AURELIO FM', genre: 'Synthwave for night drives', bpm: 104, bassOct: -24,
       chords: [[57, 60, 64], [53, 57, 60], [48, 52, 55], [55, 59, 62]],
       kick: 'x...x...x...x...', snare: '....x.......x...', hat: '..x...x...x...x.', bass: 'x.x.x.x.x.x.x.x.', arp: true, pad: true },
-    { name: 'LOW TIDE 88.2', genre: 'לו־פיי מהחוף', bpm: 80, bassOct: -12,
+    { name: 'LOW TIDE 88.2', genre: 'Lo-fi from the beach', bpm: 80, bassOct: -12,
       chords: [[50, 53, 57, 60], [55, 59, 62, 65], [48, 52, 55, 59], [57, 60, 64, 67]],
       kick: 'x.....x...x.....', snare: '....x.......x...', hat: 'x.x.x.x.x.x.x.x.', bass: 'x.......x.....x.', pad: true, keys: true },
-    { name: 'PULSE 99', genre: 'האוס אחרי חצות', bpm: 122, bassOct: -24,
+    { name: 'PULSE 99', genre: 'After-midnight house', bpm: 122, bassOct: -24,
       chords: [[53, 56, 60], [49, 53, 56], [56, 60, 63], [51, 55, 58]],
       kick: 'x...x...x...x...', snare: '....x.......x...', hat: '..x...x...x...x.', bass: '..x...x...x...x.', stab: 'x.....x...x.....' },
   ],

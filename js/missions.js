@@ -27,9 +27,9 @@ const sidewalkCorner = (i, j) => [nodeCoord(i) + CITY.ROAD / 2 + 2.6, nodeCoord(
 
 const Missions = {
   defs: [
-    { id: 'courier', title: 'משלוח לילה', desc: 'חבילה רגישה מחכה לאיסוף בצד השני של העיר. אסוף ומסור לפני שהשעון אוזל.', reward: 1800, color: 0xffc247, at: [4, 7] },
-    { id: 'race', title: 'מרוץ רחוב', desc: 'שמונה נקודות ביקורת ושעון אחד. צריך רכב — וכמה שיותר מהיר.', reward: 3200, color: 0x3ee6c1, at: [7, 4], needCar: true },
-    { id: 'heist', title: 'הכספת של הבנק המרכזי', desc: 'פרוץ לכספת בדאונטאון, התחמק מהמשטרה והגע למחבוא בסאנסט פלאטס.', reward: 9000, color: 0xff4d5e, at: [8, 8] },
+    { id: 'courier', title: 'Night Delivery', desc: 'A sensitive package awaits pickup across town. Grab it and deliver before the clock runs out.', reward: 1800, color: 0xffc247, at: [4, 7] },
+    { id: 'race', title: 'Street Race', desc: 'Eight checkpoints and one clock. You need a car — the faster the better.', reward: 3200, color: 0x3ee6c1, at: [7, 4], needCar: true },
+    { id: 'heist', title: 'Central Bank Vault', desc: 'Crack the downtown vault, lose the cops and reach the hideout in Sunset Flats.', reward: 9000, color: 0xff4d5e, at: [8, 8] },
   ],
   active: null, steps: [], si: 0, time: null, givers: [], target: null, ring: null,
 
@@ -62,8 +62,8 @@ const Missions = {
       const a = this.farPoint(P.x, P.z, 160, 360), b = this.farPoint(a.x, a.z, 260, 520);
       const t = Math.round(Math.hypot(b.x - a.x, b.z - a.z) / 11 + 28);
       return [
-        { type: 'goto', x: a.x, z: a.z, r: 7, text: 'סע לנקודת האיסוף', onDone: () => { this.time = t; UI.toast('החבילה אצלך', `יש לך ${t} שניות להגיע ליעד.`, 'mission'); Sound.pickup(); } },
-        { type: 'goto', x: b.x, z: b.z, r: 7, text: 'מסור את החבילה ליעד' },
+        { type: 'goto', x: a.x, z: a.z, r: 7, text: 'Drive to the pickup', onDone: () => { this.time = t; UI.toast('Package acquired', `You have ${t} seconds to reach the drop-off.`, 'mission'); Sound.pickup(); } },
+        { type: 'goto', x: b.x, z: b.z, r: 7, text: 'Deliver the package' },
       ];
     }
     if (def.id === 'race') {
@@ -77,23 +77,23 @@ const Missions = {
           dir = [nx[0] - cur[0], nx[1] - cur[1]]; cur = nx; len += CITY.CELL;
         }
         if (cur[0] === 0 || cur[0] === N || cur[1] === 0 || cur[1] === N) dir = null;
-        pts.push({ type: 'goto', x: nodeCoord(cur[0]), z: nodeCoord(cur[1]), r: 10, text: `נקודת ביקורת ${k + 1} מתוך 8`, race: true, needCar: true, dir: dir ? Math.atan2(dir[0], dir[1]) : 0 });
+        pts.push({ type: 'goto', x: nodeCoord(cur[0]), z: nodeCoord(cur[1]), r: 10, text: `Checkpoint ${k + 1} of 8`, race: true, needCar: true, dir: dir ? Math.atan2(dir[0], dir[1]) : 0 });
       }
-      pts[0].onStart = () => { this.time = Math.round(len / 21 + 14); UI.banner('יוצאים!', 'עבור בכל נקודות הביקורת לפני שהזמן אוזל', 'mission', 1600); };
+      pts[0].onStart = () => { this.time = Math.round(len / 21 + 14); UI.banner('GO!', 'Hit every checkpoint before time runs out', 'mission', 1600); };
       return pts;
     }
     // heist
     const [bx, bz] = sidewalkCorner(5, 5), [hx, hz] = sidewalkCorner(1, 9);
     return [
-      { type: 'goto', x: bx, z: bz, r: 6, text: 'הגע לבנק המרכזי בדאונטאון',
-        onDone: () => { Wanted.setLevel(3); UI.banner('הכספת נפתחה', 'עכשיו צריך לצאת מזה בחיים', 'heat', 2400); Sound.explosion(0.4); FX.sparks(bx, 1.5, bz, 14); } },
-      { type: 'lose', text: 'התחמק מהמשטרה' },
-      { type: 'goto', x: hx, z: hz, r: 6, text: 'הגע למחבוא בסאנסט פלאטס', clean: true },
+      { type: 'goto', x: bx, z: bz, r: 6, text: 'Get to the Central Bank downtown',
+        onDone: () => { Wanted.setLevel(3); UI.banner('Vault cracked', 'Now get out alive', 'heat', 2400); Sound.explosion(0.4); FX.sparks(bx, 1.5, bz, 14); } },
+      { type: 'lose', text: 'Lose the cops' },
+      { type: 'goto', x: hx, z: hz, r: 6, text: 'Reach the hideout in Sunset Flats', clean: true },
     ];
   },
 
   start(def) {
-    if (def.needCar && Player.mode !== 'car') { UI.toast('צריך רכב', 'היכנס לרכב ואז חזור לנקודה.', 'mission'); return; }
+    if (def.needCar && Player.mode !== 'car') { UI.toast('Vehicle required', 'Get in a car and come back.', 'mission'); return; }
     this.active = def; this.steps = this.build(def); this.si = 0; this.time = null;
     for (const g of this.givers) g.b.visible = false;
     UI.banner(def.title, def.desc, 'mission', 3000);
@@ -126,13 +126,13 @@ const Missions = {
     const def = this.active;
     Game.addMoney(def.reward);
     if (!Game.completed.includes(def.id)) Game.completed.push(def.id);
-    UI.banner('המשימה הושלמה', `${def.title} · ${ltr('+' + fmtMoney(def.reward))}`, 'passed', 3800);
+    UI.banner('MISSION PASSED', `${def.title} · ${ltr('+' + fmtMoney(def.reward))}`, 'passed', 3800);
     Sound.passed();
     this.cleanup(); Game.save();
   },
   fail(reason) {
     if (!this.active) return;
-    UI.banner('המשימה נכשלה', reason, 'failed', 3200);
+    UI.banner('MISSION FAILED', reason, 'failed', 3200);
     Sound.failed();
     this.cleanup();
   },
@@ -162,12 +162,12 @@ const Missions = {
     const s = this.current();
     if (this.time != null) {
       this.time -= dt; UI.timer(this.time);
-      if (this.time <= 0) { this.fail('נגמר הזמן'); return; }
+      if (this.time <= 0) { this.fail('Out of time'); return; }
     }
     if (s.type === 'goto') {
       const inCar = Player.mode === 'car';
-      if (s.needCar && !inCar) UI.objective('חזור לרכב כדי להמשיך');
-      else if (s.clean && Wanted.level > 0) UI.objective('קודם תתנער מהמשטרה');
+      if (s.needCar && !inCar) UI.objective('Get back in the car to continue');
+      else if (s.clean && Wanted.level > 0) UI.objective('Lose the cops first');
       else UI.objective(s.text);
       if (Math.hypot(P.x - s.x, P.z - s.z) < s.r && (!s.needCar || inCar) && (!s.clean || Wanted.level === 0)) this.advance();
     } else if (s.type === 'lose') {
@@ -221,7 +221,7 @@ const Pickups = {
         if (p.type === 'health' && Player.health >= 100) continue;
         p.mesh.visible = false; p.cool = 50;
         if (p.type === 'cash') { Game.addMoney(p.amount); Sound.pickup(); }
-        else { Player.health = Math.min(100, Player.health + p.amount); Sound.pickup(); UI.toast('בריאות', `${ltr('+' + p.amount)} נקודות`, 'ok'); }
+        else { Player.health = Math.min(100, Player.health + p.amount); Sound.pickup(); UI.toast('Health', `${ltr('+' + p.amount)} HP`, 'ok'); }
       }
     }
   },

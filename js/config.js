@@ -75,11 +75,11 @@ const QUALITY = {
 };
 
 const LOAD_TIPS = [
-  'בלם יד (רווח) בזמן פנייה = החלקה מבוקרת.',
-  'מחוץ לטווח הראייה של השוטרים, רמת המרדף מתחילה לרדת.',
-  'מזומנים זהובים מפוזרים על המדרכות. שווה לעצור.',
-  'Q מחליף תחנת רדיו. יש שלוש, ואחת מהן רק לשעות הקטנות.',
-  'M פותח מפה. לחיצה עליה מסמנת יעד ומדליקה ניווט.',
-  'רכב שעולה באש מתפוצץ אחרי כמה שניות. צא מהר.',
-  'רמזורים עובדים באמת — וגם הנהגים האחרים מצייתים להם.',
+  'Handbrake (Space) while turning = controlled drift.',
+  'Out of the cops\' sight, your wanted level starts to drop.',
+  'Golden cash is scattered on the sidewalks. Worth a stop.',
+  'Q switches radio stations. There are three, and one is for the small hours.',
+  'M opens the map. Click it to set a waypoint and start GPS.',
+  'A burning car explodes after a few seconds. Get out fast.',
+  'Traffic lights really work — and other drivers obey them.',
 ];

@@ -60,8 +60,8 @@ function mergeGeos(list) {
 
 const SKY = {
   DAY_TOP: new THREE.Color(0x2f74c9), DAY_HOR: new THREE.Color(0xb9d3e6),
-  DUSK_TOP: new THREE.Color(0x2b3769), DUSK_HOR: new THREE.Color(0xff8a4f),
-  NIGHT_TOP: new THREE.Color(0x03060f), NIGHT_HOR: new THREE.Color(0x111a2e),
+  DUSK_TOP: new THREE.Color(0x3a2a6e), DUSK_HOR: new THREE.Color(0xff6a8a),
+  NIGHT_TOP: new THREE.Color(0x0a0820), NIGHT_HOR: new THREE.Color(0x2a1c3e),
   SUN: new THREE.Color(0xfff1dc), SUN_LOW: new THREE.Color(0xff8f4a), MOON: new THREE.Color(0x8ea6dc),
   MTN: new THREE.Color(0x1d2740), WATER_DAY: new THREE.Color(0x1a5a78), WATER_NIGHT: new THREE.Color(0x061522),
 };
@@ -75,22 +75,22 @@ const World = {
   async build(scene, progress) {
     this.scene = scene;
     const rng = mulberry32(20261006);
-    progress(0.06, 'משרטט את רשת הרחובות');
+    progress(0.06, 'Laying out the street grid');
     // billboards are painted with web fonts — give them a moment to arrive
     try { if (document.fonts && document.fonts.ready) await Promise.race([document.fonts.ready, wait(1500)]); } catch (e) { /* ignore */ }
     await wait(30);
     this.makeTextures();
     this.makeSkyAndLights();
     this.makeGround();
-    progress(0.2, 'צובע מעברי חצייה וקווי הפרדה'); await wait(30);
+    progress(0.2, 'Painting crosswalks and lane lines'); await wait(30);
     this.makeRoadMarkings();
-    progress(0.34, 'בונה גורדי שחקים'); await wait(30);
+    progress(0.34, 'Building skyscrapers'); await wait(30);
     this.makeBlocks(rng);
-    progress(0.58, 'שותל עצים ודקלים'); await wait(30);
+    progress(0.58, 'Planting trees and palms'); await wait(30);
     this.makeVegetation(rng);
-    progress(0.7, 'מדליק פנסי רחוב ורמזורים'); await wait(30);
+    progress(0.7, 'Switching on streetlights and signals'); await wait(30);
     this.makeStreetFurniture(rng);
-    progress(0.8, 'מצייר את מפת העיר'); await wait(30);
+    progress(0.8, 'Drawing the city map'); await wait(30);
     this.makeMapImage();
   },
 
@@ -258,7 +258,7 @@ const World = {
   makeGround() {
     const s = this.scene, S = CITY.HALF * 2 + CITY.ROAD;
     this.tex.asphalt.repeat.set(S / 12, S / 12);
-    const ground = new THREE.Mesh(new THREE.PlaneGeometry(S, S), new THREE.MeshStandardMaterial({ map: this.tex.asphalt, roughness: 0.93 }));
+    const ground = new THREE.Mesh(new THREE.PlaneGeometry(S, S), new THREE.MeshStandardMaterial({ map: this.tex.asphalt, roughness: 0.42, metalness: 0.25 }));
     ground.rotation.x = -Math.PI / 2; ground.receiveShadow = true; s.add(ground);
 
     const beach = new THREE.Mesh(new THREE.PlaneGeometry(S + 190, S + 190), new THREE.MeshStandardMaterial({ map: this.tex.sand, roughness: 1 }));
@@ -449,13 +449,13 @@ const World = {
 
   makeBillboards(rng) {
     const brands = [
-      ['KAFÉ NOIR', 'קפה שחור כמו הלילה', '#1a1410', '#f3c27a'],
+      ['KAFÉ NOIR', 'Coffee black as night', '#1a1410', '#f3c27a'],
       ['VOLTA', 'ELECTRIC MOTORS', '#0e2a3a', '#5ef0ff'],
-      ['SUNRISE MOTEL', 'חדרים פנויים', '#ff7a3d', '#fff3d6'],
-      ['PIXL ONE', 'הטלפון הבא שלך', '#f2f2f2', '#141414'],
-      ['AURELIO FM', '104.4 · הרדיו של העיר', '#2a0f3a', '#ffb23f'],
-      ['LUNA COLA', 'טעם של קיץ', '#b0122b', '#ffffff'],
-      ['DRIFTWOOD', 'בירה מהחוף המערבי', '#20402c', '#f2e6c8'],
+      ['SUNRISE MOTEL', 'Vacancy', '#ff7a3d', '#fff3d6'],
+      ['PIXL ONE', 'Your next phone', '#f2f2f2', '#141414'],
+      ['AURELIO FM', '104.4 · The city radio', '#2a0f3a', '#ffb23f'],
+      ['LUNA COLA', 'Taste of summer', '#b0122b', '#ffffff'],
+      ['DRIFTWOOD', 'West Coast beer', '#20402c', '#f2e6c8'],
     ];
     const mats = brands.map(([t, sub, bg, fg]) => {
       const c = document.createElement('canvas'); c.width = 512; c.height = 200;
@@ -664,7 +664,7 @@ const World = {
     this.mats.lampHead.emissiveIntensity = lamp * 2.4;
     this.mats.glow.opacity = lamp * 0.55;
     this.lampGlow.visible = lamp > 0.01;
-    const win = 0.04 + night * 1.25 + dusk * 0.25;
+    const win = 0.05 + night * 1.7 + dusk * 0.6;
     this.mats.office.emissiveIntensity = win; this.mats.res.emissiveIntensity = win * 0.95; this.mats.house.emissiveIntensity = win * 0.85;
     for (const m of this.billboardMats) m.emissiveIntensity = 0.15 + lamp * 0.9;
     this.stars.material.opacity = night * 0.9;
@@ -784,15 +784,15 @@ const World = {
   },
 
   zoneName(x, z) {
-    if (Math.abs(x) > CITY.HALF + 4 || Math.abs(z) > CITY.HALF + 4) return 'קו החוף';
+    if (Math.abs(x) > CITY.HALF + 4 || Math.abs(z) > CITY.HALF + 4) return 'Coastline';
     const i = clamp(Math.floor((x + CITY.HALF) / CITY.CELL), 0, CITY.GRID - 1), j = clamp(Math.floor((z + CITY.HALF) / CITY.CELL), 0, CITY.GRID - 1);
     const b = this.blocks[i * CITY.GRID + j];
-    if (b.type === 'downtown') return 'דאונטאון';
-    if (b.type === 'park') return b.i === 6 && b.j === 6 ? 'כיכר העירייה' : 'פארק אוריליו';
+    if (b.type === 'downtown') return 'Downtown';
+    if (b.type === 'park') return b.i === 6 && b.j === 6 ? 'City Hall Plaza' : 'Aurelio Park';
     const a = Math.atan2(z, x), q = Math.abs(a) < Math.PI / 4 ? 'E' : Math.abs(a) > Math.PI * 0.75 ? 'W' : a > 0 ? 'S' : 'N';
     const names = {
-      midtown: { N: 'נורת׳ היל', S: 'רובע הנמל', E: 'מזרח העיר', W: 'רובע האמנים' },
-      suburb: { N: 'גבעות אוריליו', S: 'חוף הזהב', E: 'פאלם ויסטה', W: 'סאנסט פלאטס' },
+      midtown: { N: 'North Hill', S: 'Harbor District', E: 'East Side', W: 'Arts District' },
+      suburb: { N: 'Aurelio Hills', S: 'Gold Coast', E: 'Palm Vista', W: 'Sunset Flats' },
     };
     return names[b.type][q];
   },
