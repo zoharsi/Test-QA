@@ -312,7 +312,8 @@ const UI = {
       <p>San Aurelio is an original open-world game that runs entirely in the browser. The city, cars, sounds and music are generated in code on every load, with no media files.</p>
       <p>All names, brands and places are fictional. The game is not affiliated with any existing developer or game series.</p>
       <p class="note">Built with Three.js r128 and the Web Audio API.</p>
-      <p class="note">M4 - FPS Weapon Animations Pack (v.1) by BarcodeGames, licensed under CC BY 4.0. <a href="https://sketchfab.com/3d-models/m4-fps-weapon-animations-pack-v1-662fc74dda2646cfb48fc610705768ef" target="_blank" rel="noopener">Original model</a> · <a href="https://creativecommons.org/licenses/by/4.0/" target="_blank" rel="noopener">License</a>. The two uploaded versions contain the same model.</p></div>`;
+      <p class="note">M4 - FPS Weapon Animations Pack (v.1) by BarcodeGames, licensed under CC BY 4.0. <a href="https://sketchfab.com/3d-models/m4-fps-weapon-animations-pack-v1-662fc74dda2646cfb48fc610705768ef" target="_blank" rel="noopener">Original model</a> · <a href="https://creativecommons.org/licenses/by/4.0/" target="_blank" rel="noopener">License</a>. The two uploaded versions contain the same model.</p>
+      <p class="note">Trees: <a href="https://sketchfab.com/3d-models/willow-tree-7bd70b487fae4f3eb70d4e69394e97b4" target="_blank" rel="noopener">Willow Tree</a> by vervoortward and <a href="https://sketchfab.com/3d-models/tree-animate-f0f9eb5e6c104bbb8e1f41c97019e6f2" target="_blank" rel="noopener">Tree Animate</a> by RandyGF, licensed under <a href="https://creativecommons.org/licenses/by/4.0/" target="_blank" rel="noopener">CC BY 4.0</a>. Runtime scaling, foliage cutouts and instancing applied.</p></div>`;
   },
   bindSettings() {
     const s = Game.settings, body = this.el['panel-body'];

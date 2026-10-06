@@ -546,35 +546,38 @@ const World = {
     for (const [x, z, s] of trees) this.addCollider(x - 0.35 * s, x + 0.35 * s, z - 0.35 * s, z + 0.35 * s, 6, true);
     for (const [x, z, s, , y] of palms) if (y === undefined) this.addCollider(x - 0.3, x + 0.3, z - 0.3, z + 0.3, 9, true);
 
-    // broadleaf trees
-    const trunkGeo = new THREE.CylinderGeometry(0.2, 0.32, 3.2, 6); trunkGeo.translate(0, 1.6, 0);
-    const crownGeo = new THREE.IcosahedronGeometry(2.6, 1); crownGeo.translate(0, 4.8, 0);
-    const bark = new THREE.MeshStandardMaterial({ color: 0x5a4433, roughness: 1 });
-    const leaf = new THREE.MeshStandardMaterial({ color: 0xffffff, roughness: 0.9, flatShading: true });
-    const tT = new THREE.InstancedMesh(trunkGeo, bark, trees.length), tC = new THREE.InstancedMesh(crownGeo, leaf, trees.length);
-    const greens = [0x3f6f2e, 0x4c7f35, 0x2f5e2a, 0x5b8a3c, 0x46743a].map(h => new THREE.Color(h));
-    trees.forEach(([x, z, s, r], k) => {
-      dummy.position.set(x, 0.25, z); dummy.rotation.set(0, r * 6.28, 0); dummy.scale.set(s, s, s); dummy.updateMatrix();
-      tT.setMatrixAt(k, dummy.matrix); tC.setMatrixAt(k, dummy.matrix); tC.setColorAt(k, greens[k % greens.length]);
-    });
-    tT.castShadow = tC.castShadow = true; tC.receiveShadow = true; S.add(tT); S.add(tC);
+    // Keep the procedural fallback only when either uploaded model cannot load.
+    if (!ImportedTrees.build(this, trees, palms)) {
+      // broadleaf trees
+      const trunkGeo = new THREE.CylinderGeometry(0.2, 0.32, 3.2, 6); trunkGeo.translate(0, 1.6, 0);
+      const crownGeo = new THREE.IcosahedronGeometry(2.6, 1); crownGeo.translate(0, 4.8, 0);
+      const bark = new THREE.MeshStandardMaterial({ color: 0x5a4433, roughness: 1 });
+      const leaf = new THREE.MeshStandardMaterial({ color: 0xffffff, roughness: 0.9, flatShading: true });
+      const tT = new THREE.InstancedMesh(trunkGeo, bark, trees.length), tC = new THREE.InstancedMesh(crownGeo, leaf, trees.length);
+      const greens = [0x3f6f2e, 0x4c7f35, 0x2f5e2a, 0x5b8a3c, 0x46743a].map(h => new THREE.Color(h));
+      trees.forEach(([x, z, s, r], k) => {
+        dummy.position.set(x, 0.25, z); dummy.rotation.set(0, r * 6.28, 0); dummy.scale.set(s, s, s); dummy.updateMatrix();
+        tT.setMatrixAt(k, dummy.matrix); tC.setMatrixAt(k, dummy.matrix); tC.setColorAt(k, greens[k % greens.length]);
+      });
+      tT.castShadow = tC.castShadow = true; tC.receiveShadow = true; S.add(tT); S.add(tC);
 
-    // palms — trunk and crown share the same instance matrix
-    const pTrunk = new THREE.CylinderGeometry(0.15, 0.26, 9, 6); pTrunk.translate(0, 4.5, 0);
-    const leaves = [];
-    for (let k = 0; k < 9; k++) {
-      const g = new THREE.BoxGeometry(0.75, 0.06, 4.2); g.translate(0, 0, 2.1); g.rotateX(0.55 + (k % 2) * 0.2); g.rotateY(k / 9 * Math.PI * 2); g.translate(0, 9, 0);
-      leaves.push(g);
+      // palms — trunk and crown share the same instance matrix
+      const pTrunk = new THREE.CylinderGeometry(0.15, 0.26, 9, 6); pTrunk.translate(0, 4.5, 0);
+      const leaves = [];
+      for (let k = 0; k < 9; k++) {
+        const g = new THREE.BoxGeometry(0.75, 0.06, 4.2); g.translate(0, 0, 2.1); g.rotateX(0.55 + (k % 2) * 0.2); g.rotateY(k / 9 * Math.PI * 2); g.translate(0, 9, 0);
+        leaves.push(g);
+      }
+      const nut = new THREE.IcosahedronGeometry(0.45, 0); nut.translate(0, 8.8, 0); leaves.push(nut);
+      const pCrown = mergeGeos(leaves);
+      const pT = new THREE.InstancedMesh(pTrunk, new THREE.MeshStandardMaterial({ color: 0x8a7158, roughness: 1 }), palms.length);
+      const pC = new THREE.InstancedMesh(pCrown, new THREE.MeshStandardMaterial({ color: 0x3f7a35, roughness: 0.85, side: THREE.DoubleSide }), palms.length);
+      palms.forEach(([x, z, s, r, y], k) => {
+        dummy.position.set(x, y === undefined ? 0.25 : y, z); dummy.rotation.set((r - 0.5) * 0.18, r * 6.28, (r - 0.5) * 0.22); dummy.scale.set(s, s, s); dummy.updateMatrix();
+        pT.setMatrixAt(k, dummy.matrix); pC.setMatrixAt(k, dummy.matrix);
+      });
+      pT.castShadow = pC.castShadow = true; S.add(pT); S.add(pC);
     }
-    const nut = new THREE.IcosahedronGeometry(0.45, 0); nut.translate(0, 8.8, 0); leaves.push(nut);
-    const pCrown = mergeGeos(leaves);
-    const pT = new THREE.InstancedMesh(pTrunk, new THREE.MeshStandardMaterial({ color: 0x8a7158, roughness: 1 }), palms.length);
-    const pC = new THREE.InstancedMesh(pCrown, new THREE.MeshStandardMaterial({ color: 0x3f7a35, roughness: 0.85, side: THREE.DoubleSide }), palms.length);
-    palms.forEach(([x, z, s, r, y], k) => {
-      dummy.position.set(x, y === undefined ? 0.25 : y, z); dummy.rotation.set((r - 0.5) * 0.18, r * 6.28, (r - 0.5) * 0.22); dummy.scale.set(s, s, s); dummy.updateMatrix();
-      pT.setMatrixAt(k, dummy.matrix); pC.setMatrixAt(k, dummy.matrix);
-    });
-    pT.castShadow = pC.castShadow = true; S.add(pT); S.add(pC);
 
     const pathMesh = new THREE.InstancedMesh(UNIT_PLANE, this.mats.walk, paths.length);
     paths.forEach(([x, z, w, d], k) => { dummy.position.set(x, 0.272, z); dummy.rotation.set(-Math.PI / 2, 0, 0); dummy.scale.set(w, d, 1); dummy.updateMatrix(); pathMesh.setMatrixAt(k, dummy.matrix); });
@@ -702,6 +705,7 @@ const World = {
     this.mats.sigZ.emissive.setHex(col(this.signalState('z')));
     this.mats.sigX.emissive.setHex(col(this.signalState('x')));
 
+    ImportedTrees.update(dt, camera);
     if (camera) { this.sky.position.copy(camera.position); this.stars.position.copy(camera.position); }
   },
 
