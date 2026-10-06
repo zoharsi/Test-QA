@@ -88,13 +88,34 @@ function buildCar(spec, color, lowDetail = false) {
 function buildAssetCar(spec, color, asset) {
   const root = new THREE.Group(), body = new THREE.Group();
   const badges = [];
-  asset.scene.traverse(node => { if (/logo|badge/i.test(node.name)) badges.push(node); });
+  asset.scene.traverse(node => { if (!spec.police && /logo|badge/i.test(node.name)) badges.push(node); });
   for (const node of badges) if (node.parent) node.parent.remove(node);
   const model = Assets.normalize(asset, 'z', spec.len);
   root.add(body); body.add(model);
   root.userData.assetFile = asset.file;
   const paintMeshes = [], headMeshes = [], wheels = [], wheelNodes = [];
   const ownedMaterials = new Map();
+  // Use the uploaded patrol car's existing roof and grille lamps, not a second bar.
+  let bar = null;
+  if (spec.police) {
+    model.traverse(node => {
+      if (!node.isMesh) return;
+      const array = Array.isArray(node.material);
+      const copies = (array ? node.material : [node.material]).map(material => {
+        const side = /red_roof_light|^light_grill$/i.test(material.name) ? 'red' :
+          /blue_roof_light|^grill_light_b$/i.test(material.name) ? 'blue' : null;
+        if (!side) return material;
+        if (!bar) bar = {};
+        if (!bar[side]) bar[side] = material.clone();
+        return bar[side];
+      });
+      node.material = array ? copies : copies[0];
+    });
+    if (bar && (!bar.red || !bar.blue)) {
+      for (const material of Object.values(bar)) ownedMaterials.set(material, material);
+      bar = null;
+    }
+  }
   model.traverse(node => {
     if (node.isMesh) {
       node.castShadow = node.receiveShadow = true;
@@ -116,7 +137,7 @@ function buildAssetCar(spec, color, asset) {
       }
       if (/headlight/i.test(node.name) || materials.some(m => /headlight/i.test(m.name))) headMeshes.push(node);
     }
-    if (/wheel/i.test(node.name) && !node.isSkinnedMesh) {
+    if (/wheel/i.test(node.name) && !/wheelbrake/i.test(node.name) && !node.isSkinnedMesh) {
       let ancestor = node.parent, nested = false;
       while (ancestor && ancestor !== model) {
         if (/wheel/i.test(ancestor.name)) nested = true;
@@ -146,8 +167,7 @@ function buildAssetCar(spec, color, asset) {
   };
   const tailM = new THREE.MeshStandardMaterial({ color: 0x4a0000, emissive: 0xff1a1a, emissiveIntensity: 0.4 });
   for (const side of [-1, 1]) part(tailM, width * 0.2, 0.12, 0.06, side * width * 0.32, height * 0.4, -spec.len / 2 - 0.02);
-  let bar = null;
-  if (spec.police) {
+  if (spec.police && !bar) {
     const dark = carMat('dark', () => new THREE.MeshStandardMaterial({ color: 0x121315, roughness: 0.7 }));
     const red = new THREE.MeshStandardMaterial({ color: 0x330000, emissive: 0xff1a2e, emissiveIntensity: 0.2 });
     const blue = new THREE.MeshStandardMaterial({ color: 0x000a33, emissive: 0x1a5cff, emissiveIntensity: 0.2 });

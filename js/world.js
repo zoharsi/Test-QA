@@ -176,6 +176,10 @@ const World = {
     this.tex = { asphalt, walk, grass, sand, blob, glow, beamGrad, waterN };
     walk.repeat.set(4, 4); grass.repeat.set(10, 10); sand.repeat.set(120, 120); waterN.repeat.set(300, 300);
 
+    // Canvas-painted building colors are sRGB, just like imported color maps.
+    // Decode before lighting so the final gamma pass does not wash out facades.
+    for (const f of [off, res, hou]) f.map.encoding = f.em.encoding = THREE.sRGBEncoding;
+    roofTex.encoding = THREE.sRGBEncoding;
     const facadeMat = (f, rough, metal) => new THREE.MeshStandardMaterial({ map: f.map, emissiveMap: f.em, emissive: 0xffffff, emissiveIntensity: 0.2, vertexColors: true, roughness: rough, metalness: metal });
     this.mats = {
       office: facadeMat(off, 0.42, 0.35),
@@ -347,7 +351,7 @@ const World = {
     this.assetBuildingBatches = new Map();
     const placeAsset = (x, z, w, d, block) => Assets.placeBuilding(this,
       Math.floor(assetRng() * Assets.manifest.buildings.length), { x, z, w, d }, block);
-    const C = hex => new THREE.Color(hex);
+    const C = hex => new THREE.Color(hex).convertSRGBToLinear();
     const OFF = ['#e3e9f0', '#c4d0dc', '#a9bccd', '#ebe4d7', '#d0d9e0', '#94a8ba', '#b8b0a4'].map(C);
     const RES = ['#f0e2cc', '#e9c7a3', '#d8b597', '#cdd7c4', '#e7d1c0', '#f3e7d3', '#c9b6a3', '#e2bfae'].map(C);
     const HOU = ['#f7efe2', '#f3d9c6', '#e5efe1', '#f2e2b5', '#dde8f2', '#f4d3cd', '#ebdff0'].map(C);

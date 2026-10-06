@@ -1,3 +1,12 @@
+# Vehicle models
+
+`police.glb`: **Los Angeles Police Department Car** by
+[hruschak30](https://sketchfab.com/hruschak30),
+[source](https://sketchfab.com/3d-models/los-angeles-police-department-car-9102f6469b3b4477827b4a480fcc2c2e),
+licensed [CC BY 4.0](https://creativecommons.org/licenses/by/4.0/).
+Uniformly scaled and grounded at runtime; original LAPD livery and roof/grille
+lights are preserved, with siren flashing applied to their materials.
+
 # Sports-car models
 
 Drop self-contained sports-car `.glb` files in this directory, then reload the
