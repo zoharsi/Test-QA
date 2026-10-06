@@ -1,7 +1,10 @@
 # Optional GLB models
 
 The game uses Three.js r128 global scripts, with no build step. `js/assets.js`
-contains the explicit manifest. Its base URL is `assets/` on this site, not the
+contains the explicit manifest and discovers every GLB in `assets/cars/` from
+the development server's directory listing (see `cars/README.md`). On static hosts
+without directory listings, register the actual car filenames explicitly.
+Its base URL is `assets/` on this site, not the
 placeholder GitHub Pages URL. URLs are relative to the page, so subpath hosting
 works. Remote hosting requires CORS permission from the asset server.
 
@@ -39,8 +42,10 @@ is fetched once per page load, including failed requests, with a 15-second timeo
 - Cars scale uniformly to the existing spec length. Name separate wheels or
   their parent groups with `wheel`. Wheels must be separate, non-skinned objects;
   meshes with wheels baked into the chassis cannot steer/spin independently.
-  Materials containing `body` or `paint` get independent per-car tints (taxi and
-  police retain their original liveries). Headlight meshes/materials can be named
+  Materials containing `body` or `paint` get independent per-car tints (including
+  taxis; police retain their original liveries). All non-police/non-van types
+  randomly share the loaded sports-car pool. Separate `logo`/`badge` objects are
+  removed before normalization. Headlight meshes/materials can be named
   `headlight`. Brake lamps, police flashers and blob shadows remain procedural.
 - People scale to 1.8 metres. Name clips with `idle`, `walk`, `run`, and optionally
   `death`, `die` or `fall` (case-insensitive). Locomotion defaults to the first clip.

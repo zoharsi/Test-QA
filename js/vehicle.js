@@ -7,9 +7,9 @@
 const CarMats = {};
 const carMat = (key, make) => CarMats[key] || (CarMats[key] = make());
 
-function buildCar(spec, color) {
+function buildCar(spec, color, lowDetail = false) {
   const type = Object.keys(VEHICLES).find(key => VEHICLES[key] === spec);
-  const asset = Assets.car(type);
+  const asset = lowDetail ? null : Assets.car(type);
   if (asset) return buildAssetCar(spec, color, asset);
   const root = new THREE.Group(), body = new THREE.Group();
   root.add(body);
@@ -87,6 +87,9 @@ function buildCar(spec, color) {
 // Visual adapter only: Vehicle's physics dimensions and controls stay unchanged.
 function buildAssetCar(spec, color, asset) {
   const root = new THREE.Group(), body = new THREE.Group();
+  const badges = [];
+  asset.scene.traverse(node => { if (/logo|badge/i.test(node.name)) badges.push(node); });
+  for (const node of badges) if (node.parent) node.parent.remove(node);
   const model = Assets.normalize(asset, 'z', spec.len);
   root.add(body); body.add(model);
   root.userData.assetFile = asset.file;
@@ -96,13 +99,15 @@ function buildAssetCar(spec, color, asset) {
     if (node.isMesh) {
       node.castShadow = node.receiveShadow = true;
       const materials = Array.isArray(node.material) ? node.material : [node.material];
-      if (materials.some(m => /body|paint/i.test(m.name))) {
+      const isPaint = material => /body|paint|car.?colou?r/i.test(material.name) ||
+        (materials.length === 1 && /body|paint/i.test(node.name) && !/glass|tire|rubber|chrome|light/i.test(material.name));
+      if (materials.some(isPaint)) {
         paintMeshes.push(node);
         const copies = materials.map(material => {
-          if (!/body|paint/i.test(material.name)) return material;
+          if (!isPaint(material)) return material;
           if (!ownedMaterials.has(material)) {
             const copy = material.clone();
-            if (!spec.taxi && !spec.police && copy.color) copy.color.setHex(color);
+            if (!spec.police && copy.color) copy.color.setHex(color);
             ownedMaterials.set(material, copy);
           }
           return ownedMaterials.get(material);
@@ -164,6 +169,7 @@ class Vehicle {
     this.type = type;
     this.color = color != null ? color : pick(spec.colors);
     const m = buildCar(spec, this.color);
+    this.visual = m; this.lowVisual = null; this.usingLowDetail = false;
     this.mesh = m.root; this.body = m.body; this.wheels = m.wheels; this.tailM = m.tailM;
     this.paintMeshes = m.paintMeshes; this.headMeshes = m.headMeshes; this.bar = m.bar;
     this.mesh.rotation.order = 'YXZ';
@@ -248,7 +254,30 @@ class Vehicle {
     }
   }
 
+  updateDetail() {
+    if (!this.mesh.userData.assetFile || this.spec.police || this.spec.van) return;
+    const camera = Game.camera.position;
+    const distance = Math.hypot(this.pos.x - camera.x, this.pos.z - camera.z);
+    const low = Vehicles.lowDetail && !this.parked && this.driver !== 'player' &&
+      Player.vehicle !== this && !this.dead && distance > (this.usingLowDetail ? 80 : 100);
+    if (low === this.usingLowDetail) return;
+    if (low && !this.lowVisual) {
+      // Lightweight sports-shaped model; detailed GLB geometry stays cached.
+      const spec = { ...this.spec, cab: VEHICLES.sports.cab, cabZ: VEHICLES.sports.cabZ,
+        hgt: Math.min(this.spec.hgt, VEHICLES.sports.hgt) };
+      this.lowVisual = buildCar(spec, this.color, true);
+      this.mesh.add(this.lowVisual.root);
+      this.paintMeshes.push(...this.lowVisual.paintMeshes);
+      this.headMeshes.push(...this.lowVisual.headMeshes);
+    }
+    for (const child of this.mesh.children) child.visible = child === this.lowVisual?.root ? low : !low;
+    const visual = low ? this.lowVisual : this.visual;
+    this.body = visual.body; this.wheels = visual.wheels; this.tailM = visual.tailM;
+    this.usingLowDetail = low;
+  }
+
   updateVisual(dt) {
+    this.updateDetail();
     this.mesh.rotation.y = this.heading;
     this.spin += (this.vF * dt) / 0.36;
     for (const w of this.wheels) { w.spin.rotation.x = this.spin; if (w.front) w.pivot.rotation.y = this.steer; }
@@ -289,7 +318,8 @@ class Vehicle {
     const burnt = carMat('burnt', () => new THREE.MeshStandardMaterial({ color: 0x1a1817, roughness: 1 }));
     for (const m of this.paintMeshes) m.material = burnt;
     for (const m of this.headMeshes) m.material = burnt;
-    this.tailM.emissiveIntensity = 0;
+    this.visual.tailM.emissiveIntensity = 0;
+    if (this.lowVisual) this.lowVisual.tailM.emissiveIntensity = 0;
     this.vel.multiplyScalar(0.3);
     Game.explosionAt(this.pos.x, this.pos.z, this);
   }
@@ -297,9 +327,21 @@ class Vehicle {
 
 const Vehicles = {
   all: [],
+  lowDetail: false, frameSeconds: 0, frameCount: 0,
+  sampleFrame(dt) {
+    if (document.hidden) { this.frameSeconds = this.frameCount = 0; return; }
+    this.frameSeconds += dt; this.frameCount++;
+    if (this.frameSeconds < 1) return;
+    const fps = this.frameCount / this.frameSeconds;
+    if (fps < 45) this.lowDetail = true;
+    else if (fps > 50) this.lowDetail = false;
+    this.frameSeconds = this.frameCount = 0;
+  },
   remove(v) {
     World.scene.remove(v.mesh);
-    v.tailM.dispose(); if (v.bar) { v.bar.red.dispose(); v.bar.blue.dispose(); }
+    v.visual.tailM.dispose();
+    if (v.lowVisual) v.lowVisual.tailM.dispose();
+    if (v.bar) { v.bar.red.dispose(); v.bar.blue.dispose(); }
     for (const material of v.mesh.userData.ownedMaterials || []) material.dispose();
     const i = this.all.indexOf(v);
     if (i >= 0) this.all.splice(i, 1);

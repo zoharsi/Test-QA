@@ -171,7 +171,9 @@ const Game = {
   /* ---------------- loop ---------------- */
   loop() {
     requestAnimationFrame(() => this.loop());
-    const rdt = Math.min(this.clock.getDelta(), 0.05);
+    const frameTime = this.clock.getDelta();
+    Vehicles.sampleFrame(frameTime);
+    const rdt = Math.min(frameTime, 0.05);
     if (this.state === 'playing' || this.state === 'menu') {
       if (this.slowT > 0) { this.slowT -= rdt; this.slow = damp(this.slow, 0.28, 6, rdt); }
       else this.slow = damp(this.slow, 1, 4, rdt);

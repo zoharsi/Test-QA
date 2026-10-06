@@ -19,15 +19,42 @@ const Assets = {
   },
   cache: new Map(),
   _loadPromise: null,
+  sportsCars: [],
+
+  // The development static server exposes directory links. Explicit manifest
+  // entries also work on hosts which do not offer directory listings.
+  async discoverCars() {
+    const entries = new Map(Object.values(this.manifest.cars).map(entry => [entry.file, entry]));
+    try {
+      const directory = new URL(this.baseURL + 'cars/', document.baseURI);
+      const response = await fetch(directory, { signal: AbortSignal.timeout(5000) });
+      if (response.ok) {
+        const listing = new DOMParser().parseFromString(await response.text(), 'text/html');
+        for (const link of listing.querySelectorAll('a[href]')) {
+          const url = new URL(link.getAttribute('href'), directory);
+          if (url.origin !== directory.origin || !url.pathname.startsWith(directory.pathname) || !/\.glb$/i.test(url.pathname)) continue;
+          const file = 'cars/' + decodeURIComponent(url.pathname.slice(directory.pathname.length));
+          if (!entries.has(file)) entries.set(file, { file, front: '+z' });
+        }
+      }
+    } catch (error) {
+      console.warn('Car directory unavailable; using registered models.', error);
+    }
+    const special = new Set(['police', 'van'].map(type => this.manifest.cars[type].file));
+    this.sportsCars = [...entries.values()].filter(entry => !special.has(entry.file));
+    return [...entries.values()];
+  },
 
   load(onProgress = () => {}) {
     if (this._loadPromise) return this._loadPromise.then(() => onProgress(1));
+    onProgress(0);
+    this._loadPromise = this.discoverCars().then(async cars => {
     const files = [...new Set([
-      ...Object.values(this.manifest.cars), ...this.manifest.buildings, ...this.manifest.people,
+      ...cars, ...this.manifest.buildings, ...this.manifest.people,
     ].map(entry => entry.file))];
     let completed = 0;
     onProgress(0);
-    this._loadPromise = Promise.all(files.map(async file => {
+    await Promise.all(files.map(async file => {
       const controller = new AbortController();
       let timer;
       try {
@@ -57,7 +84,9 @@ const Assets = {
         clearTimeout(timer);
         onProgress(++completed / files.length);
       }
-    })).then(() => { if (!files.length) onProgress(1); });
+    }));
+    if (!files.length) onProgress(1);
+    });
     return this._loadPromise;
   },
 
@@ -76,7 +105,11 @@ const Assets = {
       return null;
     }
   },
-  car(type) { return this.clone(this.manifest.cars[type]); },
+  car(type) {
+    if (type === 'police' || type === 'van') return this.clone(this.manifest.cars[type]);
+    const available = this.sportsCars.filter(entry => this.cache.get(entry.file));
+    return this.clone(available[Math.floor(Math.random() * available.length)]);
+  },
   building(i = Math.floor(Math.random() * this.manifest.buildings.length)) { return this.clone(this.manifest.buildings[i]); },
   person(i = 1 + Math.floor(Math.random() * Math.max(0, this.manifest.people.length - 1))) {
     return this.clone(this.manifest.people[i]);
