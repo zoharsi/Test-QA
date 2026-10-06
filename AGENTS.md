@@ -1,5 +1,6 @@
 # Agent notes
 
+- js/weapons.js owns the separately rendered FPS arms/weapon scene. 1/2 equip, R reloads, 0 holsters to the unchanged third-person controls. The two uploaded M4 files are byte-identical (two labelled slots, not unique designs). Their clips use a shared timeline: subtract each clip's first key time before playback; the final Draw keys provide idle. Align to FPS_Camera_j_01 at idle instead of normalizing the arms' bounds. CC BY attribution is in About and assets/weapons/README.md. Verify slot switching, ammo decrement, reload completion and holstering through actual HUD/canvas clicks.
 - Pure static site (no build, no deps). Three.js r128 and Google Fonts load from CDN.
 - Served by python http.server in `docker-compose.base44.yml` with the repo bind-mounted read-only; edits are live on browser reload (no HMR).
 - Verify: `curl localhost:3000/` returns index.html; game needs WebGL in the browser.

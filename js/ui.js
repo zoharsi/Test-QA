@@ -286,7 +286,7 @@ const UI = {
     return `<div class="ctl-grid">
       <section><h3>On foot</h3>
         ${row(['W', 'A', 'S', 'D'], 'Move')}${row(['Shift'], 'Sprint')}${row(['Space'], 'Jump')}
-        ${row(['Mouse'], 'Look around')}${row(['Click'], 'Punch')}${row(['F'], 'Enter / hijack vehicle')}${row(['E'], 'Start mission')}
+        ${row(['Mouse'], 'Look around')}${row(['Click'], 'Punch / fire equipped weapon')}${row(['1', '2'], 'Equip M4 (first-person)')}${row(['R'], 'Reload')}${row(['0'], 'Holster / third-person')}${row(['F'], 'Enter / hijack vehicle')}${row(['E'], 'Start mission')}
       </section>
       <section><h3>In vehicle</h3>
         ${row(['W'], 'Accelerate')}${row(['S'], 'Brake / reverse')}${row(['A', 'D'], 'Steer')}${row(['Space'], 'Handbrake, drift')}
@@ -311,7 +311,8 @@ const UI = {
     return `<div class="about">
       <p>San Aurelio is an original open-world game that runs entirely in the browser. The city, cars, sounds and music are generated in code on every load, with no media files.</p>
       <p>All names, brands and places are fictional. The game is not affiliated with any existing developer or game series.</p>
-      <p class="note">Built with Three.js r128 and the Web Audio API.</p></div>`;
+      <p class="note">Built with Three.js r128 and the Web Audio API.</p>
+      <p class="note">M4 - FPS Weapon Animations Pack (v.1) by BarcodeGames, licensed under CC BY 4.0. <a href="https://sketchfab.com/3d-models/m4-fps-weapon-animations-pack-v1-662fc74dda2646cfb48fc610705768ef" target="_blank" rel="noopener">Original model</a> · <a href="https://creativecommons.org/licenses/by/4.0/" target="_blank" rel="noopener">License</a>. The two uploaded versions contain the same model.</p></div>`;
   },
   bindSettings() {
     const s = Game.settings, body = this.el['panel-body'];

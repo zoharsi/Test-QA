@@ -63,6 +63,7 @@ const Game = {
     await Assets.load(p => UI.loading(p * 0.18, 'טוען מודלים'));
     await World.build(this.scene, (p, s) => UI.loading(0.18 + p * 0.82, s));
     FX.init(this.scene);
+    Weapons.init();
     Heli.build();
     UI.loading(0.84, 'Loading player model');
     await Player.init();
@@ -177,13 +178,14 @@ const Game = {
     if (this.state === 'playing' || this.state === 'menu') {
       if (this.slowT > 0) { this.slowT -= rdt; this.slow = damp(this.slow, 0.28, 6, rdt); }
       else this.slow = damp(this.slow, 1, 4, rdt);
-      this.update(rdt * this.slow, rdt);
+      this.update(rdt * this.slow, rdt, frameTime * this.slow);
     }
     if (this.composer) this.composer.render(); else this.renderer.render(this.scene, this.camera);
+    Weapons.render(this.renderer);
     Input.endFrame();
   },
 
-  update(dt, rdt) {
+  update(dt, rdt, weaponDt = dt) {
     const playing = this.state === 'playing';
     this.prompt = null;
     if (playing) this.handleInput();
@@ -216,7 +218,9 @@ const Game = {
     }
     Heli.update(dt);
     FX.update(dt);
+    Weapons.update(weaponDt);
     this.updateCamera(rdt);
+    Player.ch.root.visible = Player.mode === 'foot' && !Weapons.firstPerson;
     this.updateAudio();
     if (playing) UI.update(rdt);
   },
@@ -248,7 +252,11 @@ const Game = {
       if (I.hit('KeyF') || I.hit('Enter')) this.exitVehicle();
     } else {
       if (I.hit('KeyF') || I.hit('Enter')) this.tryEnter();
-      if (I.clicked) Player.punch();
+      if (I.hit('Digit1')) Weapons.equip(0);
+      if (I.hit('Digit2')) Weapons.equip(1);
+      if (I.hit('Digit0')) Weapons.equip(-1);
+      if (I.hit('KeyR')) Weapons.reload();
+      if (I.clicked) { if (Weapons.firstPerson) Weapons.fire(); else Player.punch(); }
     }
   },
   footInput() {
@@ -499,6 +507,12 @@ const Game = {
       }
       fov = 60 + Math.min(sp, 55) * 0.3;
       ox = v.pos.x; oz = v.pos.z;
+    } else if (Weapons.firstPerson) {
+      const p = Player.pos, cp = Math.cos(C.pitch), sp = Math.sin(C.pitch);
+      des.set(p.x, p.y + 1.6, p.z);
+      look.copy(des).add(new THREE.Vector3(Math.sin(C.yaw) * cp, -sp, Math.cos(C.yaw) * cp));
+      cam.position.copy(des); this._lookCur.copy(look);
+      collide = false; k = 90;
     } else {
       const p = Player.pos, fx = Math.sin(C.yaw), fz = Math.cos(C.yaw), rx = -fz, rz = fx;
       const tx = p.x + rx * 0.55, ty = p.y + 1.6, tz = p.z + rz * 0.55, dist = 4.4, cp = Math.cos(C.pitch), sp = Math.sin(C.pitch);

@@ -11,6 +11,7 @@
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Heebo:wght@400;500;700;800;900&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="css/style.css">
+  <link rel="stylesheet" href="css/weapons.css">
 </head>
 <body>
   <canvas id="game" aria-label="Game world"></canvas>
@@ -126,6 +127,16 @@
     <div id="lock-hint">Click the screen to control the camera with the mouse</div>
     <div id="fps" dir="ltr"></div>
     <div id="hurt" aria-hidden="true"></div>
+    <div id="weapon-crosshair" hidden aria-hidden="true">+</div>
+    <div id="weapon-hud" hidden>
+      <strong id="weapon-status" aria-live="polite"></strong>
+      <div id="weapon-slots" role="group" aria-label="Weapon selection">
+        <button type="button" data-weapon="0" aria-pressed="false">1 · M4 v1</button>
+        <button type="button" data-weapon="1" aria-pressed="false">2 · M4 v11</button>
+        <button type="button" data-weapon="-1" aria-pressed="true">0 · Unarmed</button>
+      </div>
+      <small>Click: fire · R: reload · 1 / 2: equip · 0: unarmed</small>
+    </div>
   </section>
 
   <!-- mission / death banner -->
@@ -182,6 +193,7 @@
   <script src="js/fx.js"></script>
   <script src="js/missions.js"></script>
   <script src="js/ui.js"></script>
+  <script src="js/weapons.js"></script>
   <script src="js/main.js"></script>
 </body>
 </html>
